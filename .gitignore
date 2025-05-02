@@ -1,0 +1,7 @@
+**/*.o
+**/*.wasm
+**/*.sh
+**/test
+.editorconfig
+.vscode/
+tmp
