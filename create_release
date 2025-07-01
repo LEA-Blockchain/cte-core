@@ -1,0 +1,161 @@
+#!/bin/bash
+set -euo pipefail
+
+# --- Configuration ---
+# The name of the project, used for naming the release tarballs.
+PROJECT_NAME="cte-core"
+# The 'make' target to build the project.
+MAKE_TARGET="all"
+# Path to the test executable. If it exists and is executable, it will be run.
+TEST_EXECUTABLE="./test"
+# Your GPG Key ID for signing the release artifacts.
+GPG_KEY_ID="AD70075BC14EA6B95B7BA52618D980201D132886"
+
+# --- Helper Functions ---
+log() {
+  echo -e "\n--> $1"
+}
+
+error_exit() {
+  echo -e "\nERROR: $1" >&2
+  exit 1
+}
+
+check_command() {
+  command -v "$1" &>/dev/null || error_exit "Required command '$1' not found."
+}
+
+check_tag_collision() {
+  local tag="$1"
+  if git rev-parse "$tag" &>/dev/null || git ls-remote --tags origin | grep -q "refs/tags/${tag}$"; then
+    error_exit "Tag '$tag' already exists locally or remotely. Please choose another."
+  fi
+}
+
+validate_version_tag() {
+  local tag_to_validate="$1"
+  [[ "$tag_to_validate" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+    echo "Warning: Tag '$tag_to_validate' is non-standard (expected format: vX.Y.Z)."
+    read -rp "Continue anyway? (y/N) " confirm
+    [[ $confirm =~ ^[Yy]$ ]] || error_exit "Aborted due to non-standard tag."
+  }
+}
+
+# --- Main Script ---
+log "Starting GitHub Release for ${PROJECT_NAME}"
+
+# 1. Validate Arguments
+if [[ $# -ne 1 ]]; then
+  echo "Usage: $0 <version_tag>"
+  echo "Example: $0 v1.0.0"
+  exit 1
+fi
+VERSION_TAG="$1"
+
+# 2. Pre-flight Checks
+log "Checking required tools..."
+for cmd in git tar gh make qubes-gpg-client sha256sum basename; do check_command "$cmd"; done
+
+validate_version_tag "$VERSION_TAG"
+log "Using version tag: $VERSION_TAG"
+
+log "Validating Git state and tag..."
+check_tag_collision "$VERSION_TAG"
+
+# 3. Build and Test
+log "Building project with 'make $MAKE_TARGET'..."
+make "$MAKE_TARGET" || error_exit "Build failed."
+log "Build successful."
+
+if [[ -x "$TEST_EXECUTABLE" ]]; then
+    log "Running tests..."
+    "$TEST_EXECUTABLE" || error_exit "Tests failed. Aborting release."
+else
+    log "Test executable '$TEST_EXECUTABLE' not found or not executable, skipping tests."
+fi
+
+# 4. Discover WASM files
+log "Searching for .wasm files in the current directory..."
+shopt -s nullglob # Ensures the array is empty if no files match
+FILES_TO_PACKAGE=(./*.wasm)
+shopt -u nullglob # Unset the option after use
+
+if [ ${#FILES_TO_PACKAGE[@]} -eq 0 ]; then
+  error_exit "No .wasm files found in the current directory after build."
+fi
+log "Found ${#FILES_TO_PACKAGE[@]} wasm file(s) to package: ${FILES_TO_PACKAGE[*]}"
+
+# 5. Git Tagging
+log "Tagging commit with '$VERSION_TAG'..."
+git tag -a "$VERSION_TAG" -m "Release $VERSION_TAG"
+git push origin "$VERSION_TAG"
+
+# 6. Package, Sign, and Prepare Release Notes
+declare -a TARBALLS_CREATED
+declare -a SIGNATURES_CREATED
+declare -A CHECKSUMS
+RELEASE_NOTES_DETAILS=""
+
+log "Packaging, signing, and calculating checksums for each file..."
+for input_file in "${FILES_TO_PACKAGE[@]}"; do
+    log "-- Processing file: $input_file"
+    base_name=$(basename "$input_file")
+    tarball_name="${PROJECT_NAME}-${VERSION_TAG}-${base_name}.tar.gz"
+    signature_name="${tarball_name}.asc"
+
+    log "   Creating tarball: $tarball_name"
+    tar -czvf "$tarball_name" "$input_file" || error_exit "Failed to create tarball for '$input_file'."
+    TARBALLS_CREATED+=("$tarball_name")
+
+    log "   Calculating SHA256 checksum for $tarball_name..."
+    sha256_hash=$(sha256sum "$tarball_name" | awk '{ print $1 }') || error_exit "Failed to calculate SHA256 for '$tarball_name'."
+    log "   SHA256: $sha256_hash"
+    CHECKSUMS["$tarball_name"]="$sha256_hash"
+
+    log "   Signing tarball -> ${signature_name}"
+    qubes-gpg-client --armor --detach-sign --local-user "$GPG_KEY_ID" "$tarball_name" > "$signature_name" || error_exit "Failed to sign tarball '$tarball_name'."
+    SIGNATURES_CREATED+=("$signature_name")
+
+    RELEASE_NOTES_DETAILS+=$(cat <<EOF
+
+**File:** \`$base_name\` (packaged in \`${tarball_name}\`)
+- SHA256: \`${sha256_hash}\`
+- Signature: \`${signature_name}\`
+EOF
+)
+done
+
+# 7. Create GitHub Release
+log "Creating GitHub release..."
+RELEASE_TITLE="${PROJECT_NAME} ${VERSION_TAG}"
+RELEASE_NOTES=$(cat <<EOF
+Release for version ${VERSION_TAG}.
+
+Signed with GPG key ID: \`${GPG_KEY_ID}\`
+
+**Packaged Files:**
+${RELEASE_NOTES_DETAILS}
+
+**Verification:**
+You can verify the integrity and signatures for each tarball using commands like:
+\`\`\`bash
+# Example for ${TARBALLS_CREATED[0]}
+echo "${CHECKSUMS[${TARBALLS_CREATED[0]}]}  ${TARBALLS_CREATED[0]}" | sha256sum -c -
+gpg --verify ${SIGNATURES_CREATED[0]} ${TARBALLS_CREATED[0]}
+\`\`\`
+EOF
+)
+
+ALL_ARTIFACTS=("${TARBALLS_CREATED[@]}" "${SIGNATURES_CREATED[@]}")
+
+gh release create "$VERSION_TAG" \
+  --title "$RELEASE_TITLE" \
+  --notes-file <(echo "$RELEASE_NOTES") \
+  "${ALL_ARTIFACTS[@]}" || error_exit "GitHub release failed."
+
+# 8. Cleanup
+log "Cleaning up..."
+rm "${ALL_ARTIFACTS[@]}" || log "Warning: Failed to clean up some artifacts."
+
+log "Release process completed for ${VERSION_TAG}!"
+exit 0
