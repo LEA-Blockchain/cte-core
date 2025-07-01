@@ -86,6 +86,54 @@
 /** @} */
 
 /**
+ * @name CTE Peek Type Identifiers
+ * @brief Unique identifiers returned by `cte_decoder_peek_type`.
+ *
+ * These constants are API-level identifiers and are NOT part of the CTE wire
+ * format. They provide an unambiguous way for a parser to identify the
+ * specific type of an upcoming field with a single function call, allowing
+ * the use of a simple `switch` statement. The identifiers are organized by
+ * the field's 2-bit tag.
+ * @{
+ */
+// Tag 00: Public Key Lists
+#define CTE_PEEK_TYPE_PK_LIST_ED25519 0
+#define CTE_PEEK_TYPE_PK_LIST_SLH_128F 1
+#define CTE_PEEK_TYPE_PK_LIST_SLH_192F 2
+#define CTE_PEEK_TYPE_PK_LIST_SLH_256F 3
+
+// Tag 01: Signature Lists
+#define CTE_PEEK_TYPE_SIG_LIST_ED25519 4
+#define CTE_PEEK_TYPE_SIG_LIST_SLH_128F 5
+#define CTE_PEEK_TYPE_SIG_LIST_SLH_192F 6
+#define CTE_PEEK_TYPE_SIG_LIST_SLH_256F 7
+
+// Tag 10: IxData Fields
+#define CTE_PEEK_TYPE_IXDATA_LEGACY_INDEX 8
+#define CTE_PEEK_TYPE_IXDATA_VARINT_ZERO 9
+#define CTE_PEEK_TYPE_IXDATA_ULEB128 10
+#define CTE_PEEK_TYPE_IXDATA_SLEB128 11
+#define CTE_PEEK_TYPE_IXDATA_INT8 12
+#define CTE_PEEK_TYPE_IXDATA_INT16 13
+#define CTE_PEEK_TYPE_IXDATA_INT32 14
+#define CTE_PEEK_TYPE_IXDATA_INT64 15
+#define CTE_PEEK_TYPE_IXDATA_UINT8 16
+#define CTE_PEEK_TYPE_IXDATA_UINT16 17
+#define CTE_PEEK_TYPE_IXDATA_UINT32 18
+#define CTE_PEEK_TYPE_IXDATA_UINT64 19
+#define CTE_PEEK_TYPE_IXDATA_FLOAT32 20
+#define CTE_PEEK_TYPE_IXDATA_FLOAT64 21
+#define CTE_PEEK_TYPE_IXDATA_CONST_FALSE 22
+#define CTE_PEEK_TYPE_IXDATA_CONST_TRUE 23
+
+// Tag 11: Command Data
+#define CTE_PEEK_TYPE_CMD_SHORT 24
+#define CTE_PEEK_TYPE_CMD_EXTENDED 25
+/** @} */
+
+
+
+/**
  * @name IxData Varint Encoding Schemes
  * @brief Encoding scheme codes for the Varint sub-type (SS=01), stored in bits 5-2 (LIP-0001).
  * @{

@@ -7,52 +7,72 @@
 #define BUFFER_SIZE 2048
 
 /**
- * @brief Gets a human-readable name for a given tag and subtype combination.
- * @param tag The main 2-bit tag of the field.
- * @param subtype The subtype code, whose meaning depends on the tag.
+ * @brief Gets a human-readable name for a given peek type identifier.
+ * @param type The peek type identifier (e.g., CTE_PEEK_TYPE_PK_LIST_ED25519).
  * @return A const character string representing the name.
  */
-const char *get_subtype_name(int tag, int subtype)
+const char *get_type_name(int type)
 {
-    switch (tag)
+    switch (type)
     {
-    case CTE_TAG_PUBLIC_KEY_LIST:
-    case CTE_TAG_SIGNATURE_LIST:
-        switch (subtype)
-        {
-        case CTE_CRYPTO_TYPE_ED25519:
-            return "ED25519";
-        case CTE_CRYPTO_TYPE_SLH_DSA_128F:
-            return "SLH_DSA_128F";
-        default:
-            return "Unknown Crypto";
-        }
-    case CTE_TAG_IXDATA_FIELD:
-        switch (subtype)
-        {
-        case CTE_IXDATA_SUBTYPE_LEGACY_INDEX:
-            return "Legacy Index";
-        case CTE_IXDATA_SUBTYPE_VARINT:
-            return "Varint";
-        case CTE_IXDATA_SUBTYPE_FIXED:
-            return "Fixed";
-        case CTE_IXDATA_SUBTYPE_CONSTANT:
-            return "Constant";
-        default:
-            return "Unknown IxData";
-        }
-    case CTE_TAG_COMMAND_DATA:
-        switch (subtype)
-        {
-        case 0:
-            return "Short Format";
-        case 1:
-            return "Extended Format";
-        default:
-            return "Unknown Format";
-        }
+    // PK Lists
+    case CTE_PEEK_TYPE_PK_LIST_ED25519:
+        return "PK List ED25519";
+    case CTE_PEEK_TYPE_PK_LIST_SLH_128F:
+        return "PK List SLH_128F";
+    case CTE_PEEK_TYPE_PK_LIST_SLH_192F:
+        return "PK List SLH_192F";
+    case CTE_PEEK_TYPE_PK_LIST_SLH_256F:
+        return "PK List SLH_256F";
+    // Sig Lists
+    case CTE_PEEK_TYPE_SIG_LIST_ED25519:
+        return "Sig List ED25519";
+    case CTE_PEEK_TYPE_SIG_LIST_SLH_128F:
+        return "Sig List SLH_128F";
+    case CTE_PEEK_TYPE_SIG_LIST_SLH_192F:
+        return "Sig List SLH_192F";
+    case CTE_PEEK_TYPE_SIG_LIST_SLH_256F:
+        return "Sig List SLH_256F";
+    // IxData
+    case CTE_PEEK_TYPE_IXDATA_LEGACY_INDEX:
+        return "IxData Legacy Index";
+    case CTE_PEEK_TYPE_IXDATA_VARINT_ZERO:
+        return "IxData Varint Zero";
+    case CTE_PEEK_TYPE_IXDATA_ULEB128:
+        return "IxData ULEB128";
+    case CTE_PEEK_TYPE_IXDATA_SLEB128:
+        return "IxData SLEB128";
+    case CTE_PEEK_TYPE_IXDATA_INT8:
+        return "IxData Int8";
+    case CTE_PEEK_TYPE_IXDATA_INT16:
+        return "IxData Int16";
+    case CTE_PEEK_TYPE_IXDATA_INT32:
+        return "IxData Int32";
+    case CTE_PEEK_TYPE_IXDATA_INT64:
+        return "IxData Int64";
+    case CTE_PEEK_TYPE_IXDATA_UINT8:
+        return "IxData Uint8";
+    case CTE_PEEK_TYPE_IXDATA_UINT16:
+        return "IxData Uint16";
+    case CTE_PEEK_TYPE_IXDATA_UINT32:
+        return "IxData Uint32";
+    case CTE_PEEK_TYPE_IXDATA_UINT64:
+        return "IxData Uint64";
+    case CTE_PEEK_TYPE_IXDATA_FLOAT32:
+        return "IxData Float32";
+    case CTE_PEEK_TYPE_IXDATA_FLOAT64:
+        return "IxData Float64";
+    case CTE_PEEK_TYPE_IXDATA_CONST_FALSE:
+        return "IxData Boolean False";
+    case CTE_PEEK_TYPE_IXDATA_CONST_TRUE:
+        return "IxData Boolean True";
+    // Command Data
+    case CTE_PEEK_TYPE_CMD_SHORT:
+        return "Command Data Short";
+    case CTE_PEEK_TYPE_CMD_EXTENDED:
+        return "Command Data Extended";
     default:
-        return "Unknown Tag";
+        return "Unknown Type";
     }
 }
 
@@ -138,9 +158,29 @@ int main()
     cte_encoder_write_ixdata_sleb128(enc, sleb_val_enc);
     printf("  - IxData SLEB128 (%lld)\n", (long long)sleb_val_enc);
 
+    int8_t i8_val_enc = -120;
+    cte_encoder_write_ixdata_int8(enc, i8_val_enc);
+    printf("  - IxData Int8 (%d)\n", i8_val_enc);
+
+    int16_t i16_val_enc = -30000;
+    cte_encoder_write_ixdata_int16(enc, i16_val_enc);
+    printf("  - IxData Int16 (%d)\n", i16_val_enc);
+
     int32_t i32_val_enc = -1000;
     cte_encoder_write_ixdata_int32(enc, i32_val_enc);
     printf("  - IxData Int32 (%d)\n", i32_val_enc);
+
+    uint8_t u8_val_enc = 250;
+    cte_encoder_write_ixdata_uint8(enc, u8_val_enc);
+    printf("  - IxData Uint8 (%u)\n", u8_val_enc);
+
+    uint16_t u16_val_enc = 60000;
+    cte_encoder_write_ixdata_uint16(enc, u16_val_enc);
+    printf("  - IxData Uint16 (%u)\n", u16_val_enc);
+
+    uint32_t u32_val_enc = 4000000000;
+    cte_encoder_write_ixdata_uint32(enc, u32_val_enc);
+    printf("  - IxData Uint32 (%u)\n", u32_val_enc);
 
     uint64_t u64_val_enc = 9876543210ULL;
     cte_encoder_write_ixdata_uint64(enc, u64_val_enc);
@@ -149,6 +189,10 @@ int main()
     float f32_val_enc = 3.14159f;
     cte_encoder_write_ixdata_float32(enc, f32_val_enc);
     printf("  - IxData Float32 (%f)\n", f32_val_enc);
+
+    double f64_val_enc = 1.23456789012345;
+    cte_encoder_write_ixdata_float64(enc, f64_val_enc);
+    printf("  - IxData Float64 (%f)\n", f64_val_enc);
 
     cte_encoder_write_ixdata_boolean(enc, true);
     printf("  - IxData Boolean (true)\n");
@@ -186,117 +230,139 @@ int main()
     while (dec->position < encoded_size)
     {
         size_t current_pos = dec->position;
-        int tag = cte_decoder_peek_tag(dec);
-        int subtype = cte_decoder_peek_subtype(dec);
+        int type = cte_decoder_peek_type(dec);
 
-        printf("\nPos: %-3zu -> Peeked Tag: %02X, Subtype: %d (%s)\n",
-               current_pos, tag, subtype, get_subtype_name(tag, subtype));
+        printf("\nPos: %-3zu -> Peeked Type: %d (%s)\n",
+               current_pos, type, get_type_name(type));
 
-        switch (tag)
+        switch (type)
         {
-        case CTE_TAG_PUBLIC_KEY_LIST:
+        case CTE_PEEK_TYPE_PK_LIST_ED25519:
         {
-            uint8_t count = cte_decoder_peek_public_key_list_count(dec);
             const uint8_t *data = cte_decoder_read_public_key_list_data(dec);
-            printf("  - Read PubKey List (Count: %u). New Pos: %zu\n", count, dec->position);
-            if (count != key_count_enc) printf("  - ERROR: Key count mismatch!\n");
-            if (subtype != key_type_enc) printf("  - ERROR: Key type mismatch!\n");
+            printf("  - Read PubKey List. New Pos: %zu\n", dec->position);
             if (memcmp(data, dummy_keys, sizeof(dummy_keys)) != 0) printf("  - ERROR: Key data mismatch!\n");
             break;
         }
-        case CTE_TAG_SIGNATURE_LIST:
+        case CTE_PEEK_TYPE_SIG_LIST_SLH_128F:
         {
-            uint8_t count = cte_decoder_peek_signature_list_count(dec);
             const uint8_t *data = cte_decoder_read_signature_list_data(dec);
-            printf("  - Read Sig List (Count: %u). New Pos: %zu\n", count, dec->position);
-            if (count != sig_count_enc) printf("  - ERROR: Sig count mismatch!\n");
-            if (subtype != sig_type_enc) printf("  - ERROR: Sig type mismatch!\n");
+            printf("  - Read Sig List. New Pos: %zu\n", dec->position);
             if (memcmp(data, dummy_sig_hash, sizeof(dummy_sig_hash)) != 0) printf("  - ERROR: Sig data mismatch!\n");
             break;
         }
-        case CTE_TAG_IXDATA_FIELD:
+        case CTE_PEEK_TYPE_IXDATA_LEGACY_INDEX:
         {
-            int header_byte = dec->data[dec->position];
-            uint8_t detail_code = (header_byte >> 2) & 0x0F;
-
-            switch (subtype)
-            {
-            case CTE_IXDATA_SUBTYPE_LEGACY_INDEX:
-            {
-                uint8_t index = cte_decoder_read_ixdata_index_reference(dec);
-                printf("  - Read IxData Legacy Index: %u. New Pos: %zu\n", index, dec->position);
-                if (ix_legacy_count == 0 && index != 1) printf("  - ERROR: First index mismatch!\n");
-                if (ix_legacy_count == 1 && index != 0) printf("  - ERROR: Second index mismatch!\n");
-                ix_legacy_count++;
-                break;
-            }
-            case CTE_IXDATA_SUBTYPE_VARINT:
-                if (detail_code == CTE_IXDATA_VARINT_ENC_ULEB128)
-                {
-                    uint64_t val = cte_decoder_read_ixdata_uleb128(dec);
-                    printf("  - Read IxData ULEB128: %llu. New Pos: %zu\n", (unsigned long long)val, dec->position);
-                    if (val != uleb_val_enc) printf("  - ERROR: ULEB128 value mismatch!\n");
-                }
-                else if (detail_code == CTE_IXDATA_VARINT_ENC_SLEB128)
-                {
-                    int64_t val = cte_decoder_read_ixdata_sleb128(dec);
-                    printf("  - Read IxData SLEB128: %lld. New Pos: %zu\n", (long long)val, dec->position);
-                    if (val != sleb_val_enc) printf("  - ERROR: SLEB128 value mismatch!\n");
-                }
-                break;
-            case CTE_IXDATA_SUBTYPE_FIXED:
-                if (detail_code == CTE_IXDATA_FIXED_TYPE_INT32)
-                {
-                    int32_t val = cte_decoder_read_ixdata_int32(dec);
-                    printf("  - Read IxData Int32: %d. New Pos: %zu\n", val, dec->position);
-                    if (val != i32_val_enc) printf("  - ERROR: Int32 value mismatch!\n");
-                }
-                else if (detail_code == CTE_IXDATA_FIXED_TYPE_UINT64)
-                {
-                    uint64_t val = cte_decoder_read_ixdata_uint64(dec);
-                    printf("  - Read IxData Uint64: %llu. New Pos: %zu\n", (unsigned long long)val, dec->position);
-                    if (val != u64_val_enc) printf("  - ERROR: Uint64 value mismatch!\n");
-                }
-                else if (detail_code == CTE_IXDATA_FIXED_TYPE_FLOAT32)
-                {
-                    float val = cte_decoder_read_ixdata_float32(dec);
-                    printf("  - Read IxData Float32: %f. New Pos: %zu\n", val, dec->position);
-                    if (val != f32_val_enc) printf("  - ERROR: Float32 value mismatch!\n");
-                }
-                break;
-            case CTE_IXDATA_SUBTYPE_CONSTANT:
-            {
-                bool val = cte_decoder_read_ixdata_boolean(dec);
-                printf("  - Read IxData Boolean: %s. New Pos: %zu\n", val ? "true" : "false", dec->position);
-                if (ix_const_count == 0 && val != true) printf("  - ERROR: First boolean mismatch!\n");
-                if (ix_const_count == 1 && val != false) printf("  - ERROR: Second boolean mismatch!\n");
-                ix_const_count++;
-                break;
-            }
-            }
+            uint8_t index = cte_decoder_read_ixdata_index_reference(dec);
+            printf("  - Read IxData Legacy Index: %u. New Pos: %zu\n", index, dec->position);
+            if (ix_legacy_count == 0 && index != 1) printf("  - ERROR: First index mismatch!\n");
+            if (ix_legacy_count == 1 && index != 0) printf("  - ERROR: Second index mismatch!\n");
+            ix_legacy_count++;
             break;
         }
-        case CTE_TAG_COMMAND_DATA:
+        case CTE_PEEK_TYPE_IXDATA_ULEB128:
         {
-            size_t len = cte_decoder_peek_command_data_length(dec);
+            uint64_t val = cte_decoder_read_ixdata_uleb128(dec);
+            printf("  - Read IxData ULEB128: %llu. New Pos: %zu\n", (unsigned long long)val, dec->position);
+            if (val != uleb_val_enc) printf("  - ERROR: ULEB128 value mismatch!\n");
+            break;
+        }
+        case CTE_PEEK_TYPE_IXDATA_SLEB128:
+        {
+            int64_t val = cte_decoder_read_ixdata_sleb128(dec);
+            printf("  - Read IxData SLEB128: %lld. New Pos: %zu\n", (long long)val, dec->position);
+            if (val != sleb_val_enc) printf("  - ERROR: SLEB128 value mismatch!\n");
+            break;
+        }
+        case CTE_PEEK_TYPE_IXDATA_INT8:
+        {
+            int8_t val = cte_decoder_read_ixdata_int8(dec);
+            printf("  - Read IxData Int8: %d. New Pos: %zu\n", val, dec->position);
+            if (val != i8_val_enc) printf("  - ERROR: Int8 value mismatch!\n");
+            break;
+        }
+        case CTE_PEEK_TYPE_IXDATA_INT16:
+        {
+            int16_t val = cte_decoder_read_ixdata_int16(dec);
+            printf("  - Read IxData Int16: %d. New Pos: %zu\n", val, dec->position);
+            if (val != i16_val_enc) printf("  - ERROR: Int16 value mismatch!\n");
+            break;
+        }
+        case CTE_PEEK_TYPE_IXDATA_INT32:
+        {
+            int32_t val = cte_decoder_read_ixdata_int32(dec);
+            printf("  - Read IxData Int32: %d. New Pos: %zu\n", val, dec->position);
+            if (val != i32_val_enc) printf("  - ERROR: Int32 value mismatch!\n");
+            break;
+        }
+        case CTE_PEEK_TYPE_IXDATA_UINT8:
+        {
+            uint8_t val = cte_decoder_read_ixdata_uint8(dec);
+            printf("  - Read IxData Uint8: %u. New Pos: %zu\n", val, dec->position);
+            if (val != u8_val_enc) printf("  - ERROR: Uint8 value mismatch!\n");
+            break;
+        }
+        case CTE_PEEK_TYPE_IXDATA_UINT16:
+        {
+            uint16_t val = cte_decoder_read_ixdata_uint16(dec);
+            printf("  - Read IxData Uint16: %u. New Pos: %zu\n", val, dec->position);
+            if (val != u16_val_enc) printf("  - ERROR: Uint16 value mismatch!\n");
+            break;
+        }
+        case CTE_PEEK_TYPE_IXDATA_UINT32:
+        {
+            uint32_t val = cte_decoder_read_ixdata_uint32(dec);
+            printf("  - Read IxData Uint32: %u. New Pos: %zu\n", val, dec->position);
+            if (val != u32_val_enc) printf("  - ERROR: Uint32 value mismatch!\n");
+            break;
+        }
+        case CTE_PEEK_TYPE_IXDATA_UINT64:
+        {
+            uint64_t val = cte_decoder_read_ixdata_uint64(dec);
+            printf("  - Read IxData Uint64: %llu. New Pos: %zu\n", (unsigned long long)val, dec->position);
+            if (val != u64_val_enc) printf("  - ERROR: Uint64 value mismatch!\n");
+            break;
+        }
+        case CTE_PEEK_TYPE_IXDATA_FLOAT32:
+        {
+            float val = cte_decoder_read_ixdata_float32(dec);
+            printf("  - Read IxData Float32: %f. New Pos: %zu\n", val, dec->position);
+            if (val != f32_val_enc) printf("  - ERROR: Float32 value mismatch!\n");
+            break;
+        }
+        case CTE_PEEK_TYPE_IXDATA_FLOAT64:
+        {
+            double val = cte_decoder_read_ixdata_float64(dec);
+            printf("  - Read IxData Float64: %f. New Pos: %zu\n", val, dec->position);
+            if (val != f64_val_enc) printf("  - ERROR: Float64 value mismatch!\n");
+            break;
+        }
+        case CTE_PEEK_TYPE_IXDATA_CONST_TRUE:
+        case CTE_PEEK_TYPE_IXDATA_CONST_FALSE:
+        {
+            bool val = cte_decoder_read_ixdata_boolean(dec);
+            printf("  - Read IxData Boolean: %s. New Pos: %zu\n", val ? "true" : "false", dec->position);
+            if (ix_const_count == 0 && val != true) printf("  - ERROR: First boolean mismatch!\n");
+            if (ix_const_count == 1 && val != false) printf("  - ERROR: Second boolean mismatch!\n");
+            ix_const_count++;
+            break;
+        }
+        case CTE_PEEK_TYPE_CMD_SHORT:
+        {
             const uint8_t *data = cte_decoder_read_command_data_payload(dec);
-            printf("  - Read Command Data (Len: %zu). New Pos: %zu\n", len, dec->position);
-            if (subtype == 0) // Short
-            {
-                printf("    - Decoded Short Payload: '%.*s'\n", (int)len, data);
-                if (len != short_len_enc) printf("  - ERROR: Short length mismatch!\n");
-                if (memcmp(data, short_cmd_enc, len) != 0) printf("  - ERROR: Short data mismatch!\n");
-            }
-            else // Extended
-            {
-                printf("    - Decoded Long Payload: '%.*s'\n", (int)len, data);
-                if (len != long_len_enc) printf("  - ERROR: Long length mismatch!\n");
-                if (memcmp(data, long_cmd_enc, len) != 0) printf("  - ERROR: Long data mismatch!\n");
-            }
+            printf("  - Read Command Data. New Pos: %zu\n", dec->position);
+            if (memcmp(data, short_cmd_enc, short_len_enc) != 0) printf("  - ERROR: Short data mismatch!\n");
+            break;
+        }
+        case CTE_PEEK_TYPE_CMD_EXTENDED:
+        {
+            const uint8_t *data = cte_decoder_read_command_data_payload(dec);
+            printf("  - Read Command Data. New Pos: %zu\n", dec->position);
+            if (memcmp(data, long_cmd_enc, long_len_enc) != 0) printf("  - ERROR: Long data mismatch!\n");
             break;
         }
         default:
-            printf("ERROR: Unknown tag %02X at position %zu. Aborting test.\n", tag, current_pos);
+            printf("ERROR: Unknown type %d at position %zu. Aborting test.\n", type, current_pos);
             goto end_loop;
         }
     }

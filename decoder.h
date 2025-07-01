@@ -18,6 +18,11 @@
  */
 #define CTE_PEEK_EOF ((uint8_t)0xFF)
 
+// --- Tag 11: Command Data ---
+#define CTE_PEEK_SUBTYPE_CMD_SHORT 0x50    ///< Command Data with a short payload (0-31 bytes).
+#define CTE_PEEK_SUBTYPE_CMD_EXTENDED 0x51 ///< Command Data with an extended payload (32-1197 bytes).
+/** @} */
+
 /**
  * @struct cte_decoder
  * @brief Manages the state of the CTE decoding process.
@@ -30,6 +35,8 @@ typedef struct
     uint8_t *data;   /**< @param data Pointer to the buffer containing the CTE encoded data. */
     size_t size;     /**< @param size Total size in bytes of the data buffer. */
     size_t position; /**< @param position Current read position within the data buffer. */
+    size_t last_list_count; /**< @param last_list_count Item count of the last list read. */
+    size_t last_cmd_len;    /**< @param last_cmd_len Payload length of the last command data read. */
 } cte_decoder_t;
 
 /**
@@ -68,29 +75,47 @@ uint8_t *cte_decoder_load(cte_decoder_t *decoder);
 void cte_decoder_reset(cte_decoder_t *decoder);
 
 /**
- * @brief Peeks at the next byte to determine the field tag.
+ * @brief Peeks at the next field to get its unique type identifier.
  *
- * Does not advance the read position. If this is the first read operation,
- * it validates the version byte and advances the position past it.
+ * This is the primary function for inspecting the data stream without
+ * advancing the read position. It returns a single, unambiguous identifier
+ * (e.g., `CTE_PEEK_TYPE_PK_LIST_ED25519`, `CTE_PEEK_TYPE_IXDATA_ULEB128`)
+ * that specifies the exact type of the upcoming field.
+ *
+ * If this is the first read operation, it also validates the CTE version
+ * byte and advances the position past it.
  *
  * @param decoder A pointer to the decoder context.
- * @return The 2-bit tag value (e.g., `CTE_TAG_PUBLIC_KEY_LIST`), or -1 on EOF.
- * @note This function will abort if the version byte is incorrect.
+ * @return The unique type identifier, or `CTE_PEEK_EOF` if the end of the
+ *         buffer is reached.
+ * @note This function will abort via `lea_abort` if the version byte is incorrect.
  */
-int cte_decoder_peek_tag(cte_decoder_t *decoder);
+int cte_decoder_peek_type(cte_decoder_t *decoder);
 
 /**
- * @brief Peeks at the next byte to determine the field's subtype.
+ * @brief Reads and consumes an IxData Varint Zero field.
  *
- * The meaning of the returned subtype depends on the field's tag.
- * - For Lists: Returns the 2-bit crypto type.
- * - For IxData: Returns the 2-bit IxData subtype.
- * - For Command Data: Returns the format (0 for Short, 1 for Extended).
+ * This function simply consumes the header byte for a Varint field that
+ * encodes the value 0.
  *
  * @param decoder A pointer to the decoder context.
- * @return The subtype code, or `CTE_PEEK_EOF` (-1) if at the end of the buffer.
  */
-int cte_decoder_peek_subtype(const cte_decoder_t *decoder);
+void cte_decoder_read_ixdata_varint_zero(cte_decoder_t *decoder);
+
+/**
+ * @brief Gets the number of items from the most recently read list.
+ * @param decoder A pointer to the decoder context.
+ * @return The item count of the last list read.
+ */
+size_t cte_decoder_get_last_list_count(const cte_decoder_t *decoder);
+
+/**
+ * @brief Gets the payload length from the most recently read command data.
+ * @param decoder A pointer to the decoder context.
+ * @return The payload length of the last command data read.
+ */
+size_t cte_decoder_get_last_command_payload_length(const cte_decoder_t *decoder);
+
 
 /**
  * @brief Peeks at a Public Key List header to read the key count.
@@ -98,24 +123,6 @@ int cte_decoder_peek_subtype(const cte_decoder_t *decoder);
  * @param decoder A pointer to the decoder context.
  * @return The number of keys (1-15) in the list, or `CTE_PEEK_EOF` on EOF.
  * @warning Aborts if the next field is not a Public Key List or N is invalid.
- */
-uint8_t cte_decoder_peek_public_key_list_count(const cte_decoder_t *decoder);
-
-/**
- * @brief Peeks at a Public Key List header to read the crypto type.
- *
- * @param decoder A pointer to the decoder context.
- * @return The crypto type code (0-3), or `CTE_PEEK_EOF` on EOF.
- * @warning Aborts if the next field is not a Public Key List.
- */
-uint8_t cte_decoder_peek_public_key_list_type(const cte_decoder_t *decoder);
-
-/**
- * @brief Reads and consumes a Public Key List field.
- *
- * @param decoder A pointer to the decoder context.
- * @return A read-only pointer to the start of the key data within the decoder's buffer.
- * @warning Aborts on errors (wrong tag, invalid N/TT, insufficient data).
  */
 const uint8_t *cte_decoder_read_public_key_list_data(cte_decoder_t *decoder);
 
@@ -125,24 +132,6 @@ const uint8_t *cte_decoder_read_public_key_list_data(cte_decoder_t *decoder);
  * @param decoder A pointer to the decoder context.
  * @return The number of signatures/hashes (1-15), or `CTE_PEEK_EOF` on EOF.
  * @warning Aborts if the next field is not a Signature List or N is invalid.
- */
-uint8_t cte_decoder_peek_signature_list_count(const cte_decoder_t *decoder);
-
-/**
- * @brief Peeks at a Signature List header to read the crypto type.
- *
- * @param decoder A pointer to the decoder context.
- * @return The crypto type code (0-3), or `CTE_PEEK_EOF` on EOF.
- * @warning Aborts if the next field is not a Signature List.
- */
-uint8_t cte_decoder_peek_signature_list_type(const cte_decoder_t *decoder);
-
-/**
- * @brief Reads and consumes a Signature List field.
- *
- * @param decoder A pointer to the decoder context.
- * @return A read-only pointer to the start of the signature data within the decoder's buffer.
- * @warning Aborts on errors (wrong tag, invalid N/TT, insufficient data).
  */
 const uint8_t *cte_decoder_read_signature_list_data(cte_decoder_t *decoder);
 
@@ -258,15 +247,6 @@ bool cte_decoder_read_ixdata_boolean(cte_decoder_t *decoder);
  * @param decoder A pointer to the decoder context.
  * @return The declared payload length in bytes (0-1197), or `SIZE_MAX` on error.
  * @warning Aborts if the next field is not Command Data or the header is invalid.
- */
-size_t cte_decoder_peek_command_data_length(const cte_decoder_t *decoder);
-
-/**
- * @brief Reads and consumes a Command Data field.
- *
- * @param decoder A pointer to the decoder context.
- * @return A read-only pointer to the start of the payload data within the decoder's buffer.
- * @warning Aborts on errors (wrong tag, invalid format, insufficient data).
  */
 const uint8_t *cte_decoder_read_command_data_payload(cte_decoder_t *decoder);
 

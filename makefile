@@ -1,56 +1,72 @@
-CC = clang
+TARGET_MVP_ENC := encoder.mvp.wasm
+TARGET_MVP_DEC := decoder.mvp.wasm
+TARGET_VM_ENC := encoder.vm.wasm
+TARGET_VM_DEC := decoder.vm.wasm
+TARGET_NATIVE_TEST := test
+TARGET_CTETOOL := ctetool
 
-CFLAGS = -Os -Wall -Wextra -pedantic
+# Compiler and flags
+CC := clang
+CFLAGS_WASM_BASE := --target=wasm32 -nostdlib -ffreestanding -nobuiltininc -Wl,--no-entry -Os -Wall -Wextra -pedantic
+CFLAGS_WASM_MVP := $(CFLAGS_WASM_BASE)
+CFLAGS_WASM_LEA := $(CFLAGS_WASM_BASE) -mnontrapping-fptoint -mbulk-memory -msign-ext -msimd128 -mtail-call -mreference-types -matomics -mmultivalue -Xclang -target-abi -Xclang experimental-mv
+CFLAGS_NATIVE := -Os -Wall -Wextra -pedantic
 
-WASM_FLAGS = --target=wasm32 -nostdlib -ffreestanding -nobuiltininc -Wl,--no-entry
+# Lea-specific paths and libraries
+LEA_INCLUDE_PATH := /usr/local/include/stdlea
+LEA_LIB_PATH := /usr/local/lib
+LEA_MVP_LIB := -lstdlea-mvp
+LEA_VM_LIB := -lstdlea-lea
+LEA_NATIVE_LIB := -lstdlea
 
-WASM_VM_EXTRA_FLAGS = -mnontrapping-fptoint -mbulk-memory -msign-ext -msimd128 -mtail-call -mreference-types -matomics -mmultivalue -Xclang -target-abi -Xclang experimental-mv
+# Source files
+SRC_CTE := cte.c
+SRC_ENC := encoder.c
+SRC_DEC := decoder.c
+SRC_TEST := test.c
+SRC_CTETOOL := ctetool.c
 
-MVP_CFLAGS = $(shell pkg-config --cflags stdlea-mvp)
-MVP_LIBS   = $(shell pkg-config --libs stdlea-mvp)
-VM_CFLAGS  = $(shell pkg-config --cflags stdlea-vm)
-VM_LIBS    = $(shell pkg-config --libs stdlea-vm)
-TEST_CFLAGS = $(shell pkg-config --cflags stdlea)
-TEST_LIBS   = $(shell pkg-config --libs stdlea)
+.PHONY: all clean
 
-ENCODER_SRC = cte.c encoder.c
-DECODER_SRC = cte.c decoder.c
-TEST_SRC    = test.c
+all: wasm_mvp wasm_vm native_test $(TARGET_CTETOOL)
 
-ENCODER_MVP = encoder.mvp.wasm
-DECODER_MVP = decoder.mvp.wasm
-ENCODER_VM  = encoder.vm.wasm
-DECODER_VM  = decoder.vm.wasm
-TEST_TARGET = test
+# MVP WASM Targets (MVP ABI)
+wasm_mvp: $(TARGET_MVP_ENC) $(TARGET_MVP_DEC)
 
-.PHONY: all clean mvp vm test_target
-
-all: $(ENCODER_MVP) $(DECODER_MVP) $(ENCODER_VM) $(DECODER_VM) $(TEST_TARGET)
-
-$(ENCODER_MVP): $(ENCODER_SRC) encoder.h cte.h
+$(TARGET_MVP_ENC): $(SRC_CTE) $(SRC_ENC)
 	@echo "Building MVP Encoder: $@"
-	$(CC) $(WASM_FLAGS) $(CFLAGS) $(MVP_CFLAGS) $(ENCODER_SRC) $(MVP_LIBS) -o $@
+	$(CC) $(CFLAGS_WASM_MVP) -I$(LEA_INCLUDE_PATH) -DENV_WASM_MVP $(SRC_CTE) $(SRC_ENC) -L$(LEA_LIB_PATH) $(LEA_MVP_LIB) -flto -o $@
 
-$(DECODER_MVP): $(DECODER_SRC) decoder.h cte.h
+$(TARGET_MVP_DEC): $(SRC_CTE) $(SRC_DEC)
 	@echo "Building MVP Decoder: $@"
-	$(CC) $(WASM_FLAGS) $(CFLAGS) $(MVP_CFLAGS) $(DECODER_SRC) $(MVP_LIBS) -o $@
+	$(CC) $(CFLAGS_WASM_MVP) -I$(LEA_INCLUDE_PATH) -DENV_WASM_MVP $(SRC_CTE) $(SRC_DEC) -L$(LEA_LIB_PATH) $(LEA_MVP_LIB) -flto -o $@
 
-$(ENCODER_VM): $(ENCODER_SRC) encoder.h cte.h
+# Lea VM WASM Targets (VM ABI)
+wasm_vm: $(TARGET_VM_ENC) $(TARGET_VM_DEC)
+
+$(TARGET_VM_ENC): $(SRC_CTE) $(SRC_ENC)
 	@echo "Building VM Encoder: $@"
-	$(CC) $(WASM_FLAGS) $(CFLAGS) $(WASM_VM_EXTRA_FLAGS) $(VM_CFLAGS) $(ENCODER_SRC) $(VM_LIBS) -o $@
+	$(CC) $(CFLAGS_WASM_LEA) -I$(LEA_INCLUDE_PATH) -DENV_WASM_LEA $(SRC_CTE) $(SRC_ENC) -L$(LEA_LIB_PATH) $(LEA_VM_LIB) -flto -o $@
 
-$(DECODER_VM): $(DECODER_SRC) decoder.h cte.h
+$(TARGET_VM_DEC): $(SRC_CTE) $(SRC_DEC)
 	@echo "Building VM Decoder: $@"
-	$(CC) $(WASM_FLAGS) $(CFLAGS) $(WASM_VM_EXTRA_FLAGS) $(VM_CFLAGS) $(DECODER_SRC) $(VM_LIBS) -o $@
+	$(CC) $(CFLAGS_WASM_LEA) -I$(LEA_INCLUDE_PATH) -DENV_WASM_LEA $(SRC_CTE) $(SRC_DEC) -L$(LEA_LIB_PATH) $(LEA_VM_LIB) -flto -o $@
 
-$(TEST_TARGET): $(TEST_SRC) cte.c encoder.c decoder.c encoder.h decoder.h cte.h
+# Native Test Target
+native_test: $(TARGET_NATIVE_TEST)
+
+$(TARGET_NATIVE_TEST): $(SRC_TEST) $(SRC_CTE) $(SRC_ENC) $(SRC_DEC)
 	@echo "Building Native Test: $@"
-	$(CC) $(CFLAGS) $(TEST_CFLAGS) $(TEST_SRC) cte.c encoder.c decoder.c $(TEST_LIBS) -o $@
+	$(CC) $(CFLAGS_NATIVE) -I$(LEA_INCLUDE_PATH) $(SRC_TEST) $(SRC_CTE) $(SRC_ENC) $(SRC_DEC) -L$(LEA_LIB_PATH) $(LEA_NATIVE_LIB) -o $@
 
-mvp: $(ENCODER_MVP) $(DECODER_MVP)
-vm:  $(ENCODER_VM) $(DECODER_VM)
-test_target: $(TEST_TARGET)
 
+
+$(TARGET_CTETOOL): $(SRC_CTETOOL) $(SRC_CTE) $(SRC_ENC) $(SRC_DEC)
+	@echo "Building CTE Tool: $@"
+	$(CC) $(CFLAGS_NATIVE) -I$(LEA_INCLUDE_PATH) $(SRC_CTETOOL) $(SRC_CTE) $(SRC_ENC) $(SRC_DEC) -L$(LEA_LIB_PATH) $(LEA_NATIVE_LIB) -o $@
+
+# Clean rule
 clean:
 	@echo "Cleaning build artifacts..."
-	rm -f $(ENCODER_MVP) $(DECODER_MVP) $(ENCODER_VM) $(DECODER_VM) $(TEST_TARGET) *.o
+	rm -f $(TARGET_MVP_ENC) $(TARGET_MVP_DEC) $(TARGET_VM_ENC) $(TARGET_VM_DEC) $(TARGET_NATIVE_TEST) $(TARGET_CTETOOL) *.o
+

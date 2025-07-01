@@ -289,6 +289,8 @@ cte_decoder_t *cte_decoder_init(size_t size)
     decoder->data = malloc(size);
     decoder->size = size;
     decoder->position = 0;
+    decoder->last_list_count = 0;
+    decoder->last_cmd_len = 0;
 
     return decoder;
 }
@@ -337,8 +339,8 @@ void cte_decoder_reset(cte_decoder_t *decoder)
  * @return The 2-bit tag value (e.g., `CTE_TAG_PUBLIC_KEY_LIST`), or -1 on EOF.
  * @note This function will abort if the version byte is incorrect.
  */
-LEA_EXPORT(cte_decoder_peek_tag)
-int cte_decoder_peek_tag(cte_decoder_t *decoder)
+LEA_EXPORT(cte_decoder_peek_type)
+int cte_decoder_peek_type(cte_decoder_t *decoder)
 {
     if (decoder->position == 0)
     {
@@ -355,28 +357,6 @@ int cte_decoder_peek_tag(cte_decoder_t *decoder)
     int header_byte = _cte_decoder_peek_header_byte(decoder);
     if (header_byte == -1)
     {
-        return -1;
-    }
-    return header_byte & CTE_TAG_MASK;
-}
-
-/**
- * @brief Peeks at the next byte to determine the field's subtype.
- *
- * The meaning of the returned subtype depends on the field's tag.
- * - For Lists: Returns the 2-bit crypto type.
- * - For IxData: Returns the 2-bit IxData subtype.
- * - For Command Data: Returns the format (0 for Short, 1 for Extended).
- *
- * @param decoder A pointer to the decoder context.
- * @return The subtype code, or `CTE_PEEK_EOF` (-1) if at the end of the buffer.
- */
-LEA_EXPORT(cte_decoder_peek_subtype)
-int cte_decoder_peek_subtype(const cte_decoder_t *decoder)
-{
-    int header_byte = _cte_decoder_peek_header_byte(decoder);
-    if (header_byte == -1)
-    {
         return CTE_PEEK_EOF;
     }
 
@@ -385,69 +365,103 @@ int cte_decoder_peek_subtype(const cte_decoder_t *decoder)
     switch (tag)
     {
     case CTE_TAG_PUBLIC_KEY_LIST:
+    {
+        uint8_t crypto_type = header_byte & CTE_CRYPTO_TYPE_MASK;
+        switch (crypto_type)
+        {
+        case CTE_CRYPTO_TYPE_ED25519:
+            return CTE_PEEK_TYPE_PK_LIST_ED25519;
+        case CTE_CRYPTO_TYPE_SLH_DSA_128F:
+            return CTE_PEEK_TYPE_PK_LIST_SLH_128F;
+        case CTE_CRYPTO_TYPE_SLH_DSA_192F:
+            return CTE_PEEK_TYPE_PK_LIST_SLH_192F;
+        case CTE_CRYPTO_TYPE_SLH_DSA_256F:
+            return CTE_PEEK_TYPE_PK_LIST_SLH_256F;
+        }
+        break;
+    }
     case CTE_TAG_SIGNATURE_LIST:
-        return header_byte & CTE_CRYPTO_TYPE_MASK;
-
+    {
+        uint8_t crypto_type = header_byte & CTE_CRYPTO_TYPE_MASK;
+        switch (crypto_type)
+        {
+        case CTE_CRYPTO_TYPE_ED25519:
+            return CTE_PEEK_TYPE_SIG_LIST_ED25519;
+        case CTE_CRYPTO_TYPE_SLH_DSA_128F:
+            return CTE_PEEK_TYPE_SIG_LIST_SLH_128F;
+        case CTE_CRYPTO_TYPE_SLH_DSA_192F:
+            return CTE_PEEK_TYPE_SIG_LIST_SLH_192F;
+        case CTE_CRYPTO_TYPE_SLH_DSA_256F:
+            return CTE_PEEK_TYPE_SIG_LIST_SLH_256F;
+        }
+        break;
+    }
     case CTE_TAG_IXDATA_FIELD:
-        return header_byte & CTE_IXDATA_SUBTYPE_MASK;
-
+    {
+        uint8_t ss = header_byte & CTE_IXDATA_SUBTYPE_MASK;
+        uint8_t detail_code = (header_byte >> 2) & 0x0F;
+        switch (ss)
+        {
+        case CTE_IXDATA_SUBTYPE_LEGACY_INDEX:
+            return CTE_PEEK_TYPE_IXDATA_LEGACY_INDEX;
+        case CTE_IXDATA_SUBTYPE_VARINT:
+            switch (detail_code)
+            {
+            case CTE_IXDATA_VARINT_ENC_ZERO:
+                return CTE_PEEK_TYPE_IXDATA_VARINT_ZERO;
+            case CTE_IXDATA_VARINT_ENC_ULEB128:
+                return CTE_PEEK_TYPE_IXDATA_ULEB128;
+            case CTE_IXDATA_VARINT_ENC_SLEB128:
+                return CTE_PEEK_TYPE_IXDATA_SLEB128;
+            }
+            break;
+        case CTE_IXDATA_SUBTYPE_FIXED:
+            switch (detail_code)
+            {
+            case CTE_IXDATA_FIXED_TYPE_INT8:
+                return CTE_PEEK_TYPE_IXDATA_INT8;
+            case CTE_IXDATA_FIXED_TYPE_INT16:
+                return CTE_PEEK_TYPE_IXDATA_INT16;
+            case CTE_IXDATA_FIXED_TYPE_INT32:
+                return CTE_PEEK_TYPE_IXDATA_INT32;
+            case CTE_IXDATA_FIXED_TYPE_INT64:
+                return CTE_PEEK_TYPE_IXDATA_INT64;
+            case CTE_IXDATA_FIXED_TYPE_UINT8:
+                return CTE_PEEK_TYPE_IXDATA_UINT8;
+            case CTE_IXDATA_FIXED_TYPE_UINT16:
+                return CTE_PEEK_TYPE_IXDATA_UINT16;
+            case CTE_IXDATA_FIXED_TYPE_UINT32:
+                return CTE_PEEK_TYPE_IXDATA_UINT32;
+            case CTE_IXDATA_FIXED_TYPE_UINT64:
+                return CTE_PEEK_TYPE_IXDATA_UINT64;
+            case CTE_IXDATA_FIXED_TYPE_FLOAT32:
+                return CTE_PEEK_TYPE_IXDATA_FLOAT32;
+            case CTE_IXDATA_FIXED_TYPE_FLOAT64:
+                return CTE_PEEK_TYPE_IXDATA_FLOAT64;
+            }
+            break;
+        case CTE_IXDATA_SUBTYPE_CONSTANT:
+            switch (detail_code)
+            {
+            case CTE_IXDATA_CONST_VAL_FALSE:
+                return CTE_PEEK_TYPE_IXDATA_CONST_FALSE;
+            case CTE_IXDATA_CONST_VAL_TRUE:
+                return CTE_PEEK_TYPE_IXDATA_CONST_TRUE;
+            }
+            break;
+        }
+        break;
+    }
     case CTE_TAG_COMMAND_DATA:
-        return (header_byte & CTE_COMMAND_FORMAT_FLAG_MASK) ? 1 : 0;
-
-    default:
-        return -1;
+        return (header_byte & CTE_COMMAND_FORMAT_FLAG_MASK)
+                   ? CTE_PEEK_TYPE_CMD_EXTENDED
+                   : CTE_PEEK_TYPE_CMD_SHORT;
     }
+
+    return -1; // Should not happen with valid CTE
 }
 
-/**
- * @brief Peeks at a Public Key List header to read the key count.
- *
- * @param decoder A pointer to the decoder context.
- * @return The number of keys (1-15) in the list, or `CTE_PEEK_EOF` on EOF.
- * @warning Aborts if the next field is not a Public Key List or N is invalid.
- */
-LEA_EXPORT(cte_decoder_peek_public_key_list_count)
-uint8_t cte_decoder_peek_public_key_list_count(const cte_decoder_t *decoder)
-{
-    int header_byte = _cte_decoder_peek_header_byte(decoder);
-    if (header_byte == -1)
-        return CTE_PEEK_EOF;
 
-    if (!CHECK_TAG_PEEK(header_byte, CTE_TAG_PUBLIC_KEY_LIST))
-    {
-        lea_abort("Peeked field is not a Public Key List");
-    }
-
-    uint8_t N = (header_byte >> 2) & 0x0F;
-    if (N == 0 || N > CTE_LIST_MAX_LEN)
-    {
-        lea_abort("Invalid public key list length in peek (N must be 1-15)");
-    }
-    return N;
-}
-
-/**
- * @brief Peeks at a Public Key List header to read the crypto type.
- *
- * @param decoder A pointer to the decoder context.
- * @return The crypto type code (0-3), or `CTE_PEEK_EOF` on EOF.
- * @warning Aborts if the next field is not a Public Key List.
- */
-LEA_EXPORT(cte_decoder_peek_public_key_list_type)
-uint8_t cte_decoder_peek_public_key_list_type(const cte_decoder_t *decoder)
-{
-    int header_byte = _cte_decoder_peek_header_byte(decoder);
-    if (header_byte == -1)
-        return CTE_PEEK_EOF;
-
-    if (!CHECK_TAG_PEEK(header_byte, CTE_TAG_PUBLIC_KEY_LIST))
-    {
-        lea_abort("Peeked field is not a Public Key List");
-    }
-
-    uint8_t TT = header_byte & CTE_CRYPTO_TYPE_MASK;
-    return TT;
-}
 
 /**
  * @brief Reads and consumes a Public Key List field.
@@ -482,6 +496,7 @@ const uint8_t *cte_decoder_read_public_key_list_data(cte_decoder_t *decoder)
     CHECK_BOUNDS(decoder, 1 + total_data_size);
 
     decoder->position++;
+    decoder->last_list_count = N;
 
     const uint8_t *data_ptr = decoder->data + decoder->position;
     decoder->position += total_data_size;
@@ -489,54 +504,7 @@ const uint8_t *cte_decoder_read_public_key_list_data(cte_decoder_t *decoder)
     return data_ptr;
 }
 
-/**
- * @brief Peeks at a Signature List header to read the item count.
- *
- * @param decoder A pointer to the decoder context.
- * @return The number of signatures/hashes (1-15), or `CTE_PEEK_EOF` on EOF.
- * @warning Aborts if the next field is not a Signature List or N is invalid.
- */
-LEA_EXPORT(cte_decoder_peek_signature_list_count)
-uint8_t cte_decoder_peek_signature_list_count(const cte_decoder_t *decoder)
-{
-    int header_byte = _cte_decoder_peek_header_byte(decoder);
-    if (header_byte == -1)
-        return CTE_PEEK_EOF;
 
-    if (!CHECK_TAG_PEEK(header_byte, CTE_TAG_SIGNATURE_LIST))
-    {
-        lea_abort("Peeked field is not a Signature List");
-    }
-
-    uint8_t N = (header_byte >> 2) & 0x0F;
-    if (N == 0 || N > CTE_LIST_MAX_LEN)
-    {
-        lea_abort("Invalid signature list length in peek (N must be 1-15)");
-    }
-    return N;
-}
-
-/**
- * @brief Peeks at a Signature List header to read the crypto type.
- *
- * @param decoder A pointer to the decoder context.
- * @return The crypto type code (0-3), or `CTE_PEEK_EOF` on EOF.
- * @warning Aborts if the next field is not a Signature List.
- */
-LEA_EXPORT(cte_decoder_peek_signature_list_type)
-uint8_t cte_decoder_peek_signature_list_type(const cte_decoder_t *decoder)
-{
-    int header_byte = _cte_decoder_peek_header_byte(decoder);
-    if (header_byte == -1)
-        return CTE_PEEK_EOF;
-
-    if (!CHECK_TAG_PEEK(header_byte, CTE_TAG_SIGNATURE_LIST))
-    {
-        lea_abort("Peeked field is not a Signature List");
-    }
-    uint8_t TT = header_byte & CTE_CRYPTO_TYPE_MASK;
-    return TT;
-}
 
 /**
  * @brief Reads and consumes a Signature List field.
@@ -571,6 +539,7 @@ const uint8_t *cte_decoder_read_signature_list_data(cte_decoder_t *decoder)
     CHECK_BOUNDS(decoder, 1 + total_data_size);
 
     decoder->position++;
+    decoder->last_list_count = N;
 
     const uint8_t *data_ptr = decoder->data + decoder->position;
     decoder->position += total_data_size;
@@ -823,23 +792,7 @@ bool cte_decoder_read_ixdata_boolean(cte_decoder_t *decoder)
     }
 }
 
-/**
- * @brief Peeks at a Command Data header to determine the payload length.
- *
- * @param decoder A pointer to the decoder context.
- * @return The declared payload length in bytes (0-1197), or `SIZE_MAX` on error.
- * @warning Aborts if the next field is not Command Data or the header is invalid.
- */
-LEA_EXPORT(cte_decoder_peek_command_data_length)
-size_t cte_decoder_peek_command_data_length(const cte_decoder_t *decoder)
-{
-    if (!decoder)
-    {
-        lea_abort("Null decoder handle in peek_command_data_length");
-    }
-    size_t header_size;
-    return _parse_command_data_header(decoder, &header_size);
-}
+
 
 /**
  * @brief Reads and consumes a Command Data field.
@@ -866,10 +819,47 @@ const uint8_t *cte_decoder_read_command_data_payload(cte_decoder_t *decoder)
     CHECK_BOUNDS(decoder, header_size + length);
 
     decoder->position += header_size;
+    decoder->last_cmd_len = length;
 
     const uint8_t *payload_ptr = decoder->data + decoder->position;
 
     decoder->position += length;
 
     return payload_ptr;
+}
+
+LEA_EXPORT(cte_decoder_read_ixdata_varint_zero)
+void cte_decoder_read_ixdata_varint_zero(cte_decoder_t *decoder)
+{
+    if (!decoder)
+    {
+        lea_abort("Null decoder handle in read_ixdata_varint_zero");
+    }
+    uint8_t header = _consume_ixdata_header(decoder, CTE_IXDATA_SUBTYPE_VARINT);
+    uint8_t EEEE = (header >> 2) & 0x0F;
+
+    if (EEEE != CTE_IXDATA_VARINT_ENC_ZERO)
+    {
+        lea_abort("Expected Varint encoding scheme 0 (ZERO)");
+    }
+}
+
+LEA_EXPORT(cte_decoder_get_last_list_count)
+size_t cte_decoder_get_last_list_count(const cte_decoder_t *decoder)
+{
+    if (!decoder)
+    {
+        lea_abort("Null decoder handle in get_last_list_count");
+    }
+    return decoder->last_list_count;
+}
+
+LEA_EXPORT(cte_decoder_get_last_command_payload_length)
+size_t cte_decoder_get_last_command_payload_length(const cte_decoder_t *decoder)
+{
+    if (!decoder)
+    {
+        lea_abort("Null decoder handle in get_last_command_payload_length");
+    }
+    return decoder->last_cmd_len;
 }
