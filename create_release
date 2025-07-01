@@ -8,7 +8,7 @@ PROJECT_NAME="cte-core"
 MAKE_TARGET="all"
 # Path to the test executable. If it exists and is executable, it will be run.
 TEST_EXECUTABLE="./test"
-# Your GPG Key ID for signing the release artifacts.
+# GPG Key ID for signing the release artifacts.
 GPG_KEY_ID="AD70075BC14EA6B95B7BA52618D980201D132886"
 
 # --- Helper Functions ---
@@ -25,10 +25,30 @@ check_command() {
   command -v "$1" &>/dev/null || error_exit "Required command '$1' not found."
 }
 
-check_tag_collision() {
+handle_existing_tag() {
   local tag="$1"
-  if git rev-parse "$tag" &>/dev/null || git ls-remote --tags origin | grep -q "refs/tags/${tag}$"; then
-    error_exit "Tag '$tag' already exists locally or remotely. Please choose another."
+  log "Checking for and deleting existing release and tag '$tag'..."
+
+  # Delete GitHub Release and associated remote tag
+  if gh release view "$tag" &>/dev/null; then
+    log "-> Found existing GitHub release for '$tag'. Deleting it and the remote tag..."
+    gh release delete "$tag" --cleanup-tag --yes || error_exit "Failed to delete GitHub release '$tag'."
+    log "   GitHub release and remote tag for '$tag' deleted."
+  else
+    log "-> No existing GitHub release found for '$tag'."
+    # If there's no release, the remote tag might still exist independently.
+    if git ls-remote --tags origin | grep -q "refs/tags/${tag}$"; then
+        log "-> Found orphaned remote tag '$tag'. Deleting..."
+        git push --delete origin "$tag" || error_exit "Failed to delete remote tag '$tag'."
+        log "   Remote tag '$tag' deleted."
+    fi
+  fi
+
+  # Delete local tag if it exists
+  if git rev-parse "$tag" &>/dev/null; then
+    log "-> Found local tag '$tag'. Deleting..."
+    git tag -d "$tag" || error_exit "Failed to delete local tag '$tag'."
+    log "   Local tag '$tag' deleted."
   fi
 }
 
@@ -54,13 +74,17 @@ VERSION_TAG="$1"
 
 # 2. Pre-flight Checks
 log "Checking required tools..."
-for cmd in git tar gh make qubes-gpg-client sha256sum basename; do check_command "$cmd"; done
+for cmd in git tar gh make gpg sha256sum basename mktemp; do check_command "$cmd"; done
 
 validate_version_tag "$VERSION_TAG"
 log "Using version tag: $VERSION_TAG"
 
-log "Validating Git state and tag..."
-check_tag_collision "$VERSION_TAG"
+# Check for gpg-client if on Qubes OS, otherwise standard gpg
+GPG_COMMAND="gpg"
+if command -v qubes-gpg-client &>/dev/null; then
+    log "Qubes OS detected, using 'qubes-gpg-client'."
+    GPG_COMMAND="qubes-gpg-client"
+fi
 
 # 3. Build and Test
 log "Building project with 'make $MAKE_TARGET'..."
@@ -85,18 +109,21 @@ if [ ${#FILES_TO_PACKAGE[@]} -eq 0 ]; then
 fi
 log "Found ${#FILES_TO_PACKAGE[@]} wasm file(s) to package: ${FILES_TO_PACKAGE[*]}"
 
-# 5. Git Tagging
-log "Tagging commit with '$VERSION_TAG'..."
-git tag -a "$VERSION_TAG" -m "Release $VERSION_TAG"
-git push origin "$VERSION_TAG"
-
-# 6. Package, Sign, and Prepare Release Notes
+# --- REORDERED STEP ---
+# 5. Package, Sign, and Prepare Release Notes BEFORE touching Git tags
+log "Creating all release artifacts..."
 declare -a TARBALLS_CREATED
 declare -a SIGNATURES_CREATED
 declare -A CHECKSUMS
-RELEASE_NOTES_DETAILS=""
+ALL_ARTIFACTS=()
 
-log "Packaging, signing, and calculating checksums for each file..."
+NOTES_FILE=$(mktemp)
+trap 'rm -f "$NOTES_FILE"' EXIT
+
+printf "Release for version %s.\n\n" "$VERSION_TAG" > "$NOTES_FILE"
+printf "Signed with GPG key ID: \`%s\`\n\n" "$GPG_KEY_ID" >> "$NOTES_FILE"
+printf "**Packaged Files:**\n" >> "$NOTES_FILE"
+
 for input_file in "${FILES_TO_PACKAGE[@]}"; do
     log "-- Processing file: $input_file"
     base_name=$(basename "$input_file")
@@ -109,53 +136,56 @@ for input_file in "${FILES_TO_PACKAGE[@]}"; do
 
     log "   Calculating SHA256 checksum for $tarball_name..."
     sha256_hash=$(sha256sum "$tarball_name" | awk '{ print $1 }') || error_exit "Failed to calculate SHA256 for '$tarball_name'."
-    log "   SHA256: $sha256_hash"
     CHECKSUMS["$tarball_name"]="$sha256_hash"
 
     log "   Signing tarball -> ${signature_name}"
-    qubes-gpg-client --armor --detach-sign --local-user "$GPG_KEY_ID" "$tarball_name" > "$signature_name" || error_exit "Failed to sign tarball '$tarball_name'."
+    "$GPG_COMMAND" --armor --detach-sign --local-user "$GPG_KEY_ID" "$tarball_name" > "$signature_name" || error_exit "Failed to sign tarball '$tarball_name'."
     SIGNATURES_CREATED+=("$signature_name")
 
-    RELEASE_NOTES_DETAILS+=$(cat <<EOF
-
-**File:** \`$base_name\` (packaged in \`${tarball_name}\`)
-- SHA256: \`${sha256_hash}\`
-- Signature: \`${signature_name}\`
-EOF
-)
+    printf -- "- **File:** \`%s\` (packaged in \`%s\`)\n" "$base_name" "$tarball_name" >> "$NOTES_FILE"
+    printf -- "  - SHA256: \`%s\`\n" "$sha256_hash" >> "$NOTES_FILE"
+    printf -- "  - Signature: \`%s\`\n\n" "$signature_name" >> "$NOTES_FILE"
 done
 
-# 7. Create GitHub Release
-log "Creating GitHub release..."
-RELEASE_TITLE="${PROJECT_NAME} ${VERSION_TAG}"
-RELEASE_NOTES=$(cat <<EOF
-Release for version ${VERSION_TAG}.
-
-Signed with GPG key ID: \`${GPG_KEY_ID}\`
-
-**Packaged Files:**
-${RELEASE_NOTES_DETAILS}
-
-**Verification:**
-You can verify the integrity and signatures for each tarball using commands like:
-\`\`\`bash
-# Example for ${TARBALLS_CREATED[0]}
-echo "${CHECKSUMS[${TARBALLS_CREATED[0]}]}  ${TARBALLS_CREATED[0]}" | sha256sum -c -
-gpg --verify ${SIGNATURES_CREATED[0]} ${TARBALLS_CREATED[0]}
-\`\`\`
-EOF
-)
-
+log "All artifacts created and signed successfully."
 ALL_ARTIFACTS=("${TARBALLS_CREATED[@]}" "${SIGNATURES_CREATED[@]}")
+
+
+# --- REORDERED STEP ---
+# 6. Git Tagging (Now that artifacts are ready)
+log "Cleaning up any previous tag and creating new tag..."
+handle_existing_tag "$VERSION_TAG"
+
+log "Tagging commit with '$VERSION_TAG'..."
+git tag -a "$VERSION_TAG" -m "Release $VERSION_TAG"
+git push origin "$VERSION_TAG"
+
+# 7. Create GitHub Release
+log "Finalizing release notes and creating GitHub release..."
+RELEASE_TITLE="${PROJECT_NAME} ${VERSION_TAG}"
+
+EXAMPLE_TARBALL=${TARBALLS_CREATED[0]}
+EXAMPLE_CHECKSUM=${CHECKSUMS[$EXAMPLE_TARBALL]}
+EXAMPLE_SIGNATURE=${SIGNATURES_CREATED[0]}
+
+printf "\n**Verification:**\n" >> "$NOTES_FILE"
+printf "You can verify the integrity and signatures for each tarball using commands like:\n" >> "$NOTES_FILE"
+printf "\`\`\`bash\n" >> "$NOTES_FILE"
+printf "# Example for %s\n" "$EXAMPLE_TARBALL" >> "$NOTES_FILE"
+printf "echo \"%s  %s\" | sha256sum --check --strict\n" "$EXAMPLE_CHECKSUM" "$EXAMPLE_TARBALL" >> "$NOTES_FILE"
+printf "gpg --verify %s %s\n" "$EXAMPLE_SIGNATURE" "$EXAMPLE_TARBALL" >> "$NOTES_FILE"
+printf "\`\`\`\n" >> "$NOTES_FILE"
 
 gh release create "$VERSION_TAG" \
   --title "$RELEASE_TITLE" \
-  --notes-file <(echo "$RELEASE_NOTES") \
+  --notes-file "$NOTES_FILE" \
   "${ALL_ARTIFACTS[@]}" || error_exit "GitHub release failed."
 
 # 8. Cleanup
-log "Cleaning up..."
-rm "${ALL_ARTIFACTS[@]}" || log "Warning: Failed to clean up some artifacts."
+log "Cleaning up local artifacts..."
+if [ ${#ALL_ARTIFACTS[@]} -gt 0 ]; then
+    rm "${ALL_ARTIFACTS[@]}" || log "Warning: Failed to clean up some artifacts."
+fi
 
 log "Release process completed for ${VERSION_TAG}!"
 exit 0
