@@ -1,6 +1,12 @@
 #include "cte.h"
 #include <stdlea.h>
 
+/**
+ * @brief Gets the size in bytes of a public key for a given crypto type.
+ * @param type_code The crypto type code (e.g., CTE_CRYPTO_TYPE_ED25519).
+ * @return The size of the public key in bytes.
+ * @note This function will abort via `lea_abort` if an invalid type code is provided.
+ */
 LEA_EXPORT(get_public_key_size)
 size_t get_public_key_size(uint8_t type_code)
 {
@@ -19,6 +25,16 @@ size_t get_public_key_size(uint8_t type_code)
     }
 }
 
+/**
+ * @brief Gets the size in bytes of a signature list item for a given crypto type.
+ *
+ * For Ed25519, this is the full signature size. For PQC schemes like SLH-DSA,
+ * this is the size of the signature's hash.
+ *
+ * @param type_code The crypto type code (e.g., CTE_CRYPTO_TYPE_ED25519).
+ * @return The size of the signature item in bytes.
+ * @note This function will abort via `lea_abort` if an invalid type code is provided.
+ */
 LEA_EXPORT(get_signature_item_size)
 size_t get_signature_item_size(uint8_t type_code)
 {
