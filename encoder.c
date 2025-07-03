@@ -1,11 +1,6 @@
 #include "encoder.h"
 #include <stdlea.h>
 
-LEA_EXPORT(test)
-void test()
-{
-    LEA_LOG("This is a test log message from the encoder.");
-}
 /**
  * @brief Checks if adding `needed` bytes would exceed the encoder's capacity.
  * @param encoder A pointer to the encoder context.

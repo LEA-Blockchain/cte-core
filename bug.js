@@ -109,9 +109,6 @@ async function main() {
     // Reset the allocators before starting
     if (encExports.__lea_allocator_reset) encExports.__lea_allocator_reset();
     if (decExports.__lea_allocator_reset) decExports.__lea_allocator_reset();
-    console.log('Call test.');
-    encExports.test();
-    console.log('Test function executed successfully.');
     // --- 2. Encode Data ---
     const enc = encExports.cte_encoder_init(80000);
     console.log('Encoding all vector types and sizes:');
