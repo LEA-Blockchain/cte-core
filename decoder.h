@@ -32,11 +32,12 @@
  */
 typedef struct
 {
-    uint8_t *data;   /**< @param data Pointer to the buffer containing the CTE encoded data. */
-    size_t size;     /**< @param size Total size in bytes of the data buffer. */
-    size_t position; /**< @param position Current read position within the data buffer. */
+    uint8_t *data;            /**< @param data Pointer to the buffer containing the CTE encoded data. */
+    size_t size;              /**< @param size Total size in bytes of the data buffer. */
+    size_t position;          /**< @param position Current read position within the data buffer. */
     size_t last_vector_count; /**< @param last_vector_count Item count of the last vector read. */
-    size_t last_vector_data_len;    /**< @param last_vector_data_len Payload length of the last generic vector data read. */
+    size_t
+        last_vector_data_len; /**< @param last_vector_data_len Payload length of the last generic vector data read. */
 } cte_decoder_t;
 
 /**
@@ -115,7 +116,6 @@ size_t cte_decoder_get_last_vector_count(const cte_decoder_t *decoder);
  * @return The payload length of the last vector data read.
  */
 size_t cte_decoder_get_last_vector_data_payload_length(const cte_decoder_t *decoder);
-
 
 /**
  * @brief Reads the data payload of a Public Key Vector.
@@ -250,5 +250,16 @@ bool cte_decoder_read_ixdata_boolean(cte_decoder_t *decoder);
  */
 const uint8_t *cte_decoder_read_vector_data_payload(cte_decoder_t *decoder);
 
+/**
+ * @brief Decodes a full CTE stream using a callback mechanism.
+ *
+ * This function iterates through the entire data buffer in the decoder,
+ * decoding each field and invoking the host-provided `__cte_data_handler`
+ * for each one. This is the recommended high-performance decoding method.
+ *
+ * @param decoder A pointer to the initialized and loaded decoder context.
+ * @return 0 on success, a non-zero error code on failure.
+ */
+int cte_decoder_run(cte_decoder_t *decoder);
 
 #endif // DECODER_H

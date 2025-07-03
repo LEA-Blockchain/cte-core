@@ -47,6 +47,19 @@ void print_usage() {
     printf("    [size] can be: 32, 64, 128, 29792\n");
 }
 
+#ifndef ENV_WASM_MVP
+/**
+ * @brief Dummy implementation of the host data handler for native builds.
+ */
+void __cte_data_handler(int type, const void *data, size_t size)
+{
+    // This is a stub for the native test build. It does nothing.
+    (void)type;
+    (void)data;
+    (void)size;
+}
+#endif
+
 /**
  * @brief Converts a hexadecimal string to a byte array.
  * @param hex_str The input string of hexadecimal characters.

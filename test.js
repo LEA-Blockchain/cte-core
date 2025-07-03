@@ -45,23 +45,52 @@ async function main() {
     }
 
     // --- 1. Setup Environment and Instantiate WASM Modules ---
+    const receivedData = [];
+    let decoderInstance; // Will be set during instantiation
+
     const importObject = {
         env: {
-            __log_lea: (ptr) => console.error(`WASM ABORT (pointer: ${ptr})`)
+            __log_lea: (ptr) => {
+                if (decoderInstance) {
+                    const readString = createStringReader(decoderInstance);
+                    console.error(`WASM ABORT: ${readString(ptr)}`);
+                } else {
+                    console.error(`WASM ABORT (pointer: ${ptr})`);
+                }
+            },
+            __cte_data_handler: (type, dataPtr, size) => {
+                const memory = new Uint8Array(decoderInstance.exports.memory.buffer);
+                console.log(`
+JS Callback -> Received Type: ${type}, Size: ${size}`);
+                const data = memory.slice(dataPtr, dataPtr + size);
+                receivedData.push({ type, data });
+
+                const dv = new DataView(data.buffer, data.byteOffset, data.length);
+                if (type >= 0 && type <= 7) { // Vectors
+                    printHex("  - Received Vector Data", data);
+                } else if (type === 8) { // Vector Index
+                    console.log(`  - Received Vector Index: ${dv.getUint8(0)}`);
+                } else if (type === 10) { // ULEB128
+                    console.log(`  - Received ULEB128: ${dv.getBigUint64(0, true)}`);
+                } else if (type === 11) { // SLEB128
+                    console.log(`  - Received SLEB128: ${dv.getBigInt64(0, true)}`);
+                } else if (type === 22 || type === 23) { // Boolean
+                    console.log(`  - Received Boolean: ${dv.getUint8(0) !== 0}`);
+                } else if (type === 24 || type === 25) { // Vector Data
+                    printHex("  - Received Vector Data", data);
+                }
+            }
         }
     };
 
     const encoderBuffer = fs.readFileSync(ENCODER_WASM_PATH);
     const { instance: encoderInstance } = await WebAssembly.instantiate(encoderBuffer, importObject);
     const encExports = encoderInstance.exports;
-    const readEncoderString = createStringReader(encoderInstance);
-    importObject.env.__log_lea = (ptr) => console.error(`ENCODER ABORT: ${readEncoderString(ptr)}`);
 
     const decoderBuffer = fs.readFileSync(DECODER_WASM_PATH);
-    const { instance: decoderInstance } = await WebAssembly.instantiate(decoderBuffer, importObject);
+    const { instance } = await WebAssembly.instantiate(decoderBuffer, importObject);
+    decoderInstance = instance;
     const decExports = decoderInstance.exports;
-    const readDecoderString = createStringReader(decoderInstance);
-    importObject.env.__log_lea = (ptr) => console.error(`DECODER ABORT: ${readDecoderString(ptr)}`);
 
     console.log('CTE Encoder/Decoder WASM Test\n');
     
@@ -134,7 +163,6 @@ async function main() {
     while ((type = decExports.cte_decoder_peek_type(dec)) !== PEEK_EOF) {
         console.log(`\nJS Loop -> Peeked Type: ${type}`);
         
-        // This is a simplified version of the C test's switch statement
         if (type >= 0 && type <= 3) { // PK Vector
             const dataPtr = decExports.cte_decoder_read_public_key_vector_data(dec);
             const count = decExports.cte_decoder_get_last_vector_count(dec);
@@ -166,10 +194,23 @@ async function main() {
             printHex("  - Read Vector Data", data);
         } else {
             console.log("  - Skipping type (not implemented in this test script)");
-            // A real implementation would need to skip unknown fields
-            // For now, we'll just abort to keep the test simple.
             break; 
         }
+    }
+
+    // --- 5. Decode Data with Host Callback ---
+    console.log('\nDecoding with Host Callback:');
+    decExports.cte_decoder_reset(dec); // Reset decoder to run again
+    receivedData.length = 0; // Clear the array
+
+    const result = decExports.cte_decoder_run(dec);
+    console.log(`\nCallback decoding finished with result: ${result}`);
+
+    // Basic assertion to verify the test ran
+    if (receivedData.length !== 9) {
+         console.error(`\n[FAIL] Expected 9 data callbacks, but received ${receivedData.length}`);
+    } else {
+         console.log(`\n[PASS] Received 9 data callbacks as expected.`);
     }
 
     console.log('\n--- Test Complete ---');

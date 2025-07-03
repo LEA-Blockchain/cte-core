@@ -100,6 +100,31 @@ void print_hex(const char *label, const uint8_t *data, size_t size)
     printf("\n");
 }
 
+#ifndef ENV_WASM_MVP
+/**
+ * @brief Host data handler for native builds and testing.
+ *
+ * This function is called by `cte_decoder_run` for each decoded field. In a
+ * WASM environment, this would be provided by the JavaScript host. For native
+ * testing, we implement it here to verify the callback-driven decoding works.
+ *
+ * @param type The unique type identifier of the decoded field.
+ * @param data A pointer to the buffer containing the field's data.
+ * @param size The size of the data in bytes.
+ */
+void __cte_data_handler(int type, const void *data, size_t size)
+{
+    printf("\n  -> Callback Received Type: %d (%s), Size: %zu\n", type, get_type_name(type), size);
+
+    if (size > 0 && data)
+    {
+        // For this test, we'll just print the hex data for simplicity,
+        // similar to the JS test's callback handler.
+        print_hex("     Data", data, size);
+    }
+}
+#endif
+
 /**
  * @brief Main entry point for the native CTE test harness.
  *
@@ -111,12 +136,15 @@ void print_hex(const char *label, const uint8_t *data, size_t size)
  * 5. Iteratively decodes the stream, peeking at each field's tag and subtype
  *    to determine how to parse it.
  * 6. Verifies that the decoded data matches the original encoded data.
- * 7. Checks for errors, such as final position mismatch.
+ * 7. Resets the decoder and runs it again using the callback handler to test
+ *    the `cte_decoder_run` functionality.
+ * 8. Checks for errors, such as final position mismatch.
  *
  * @return 0 on successful completion.
  */
 int main()
 {
+
     printf("CTE Encoder/Decoder Native Test\n");
 
     cte_encoder_t *enc = cte_encoder_init(BUFFER_SIZE);
@@ -217,7 +245,7 @@ int main()
     print_hex("Encoded Data", encoded_data, encoded_size);
 
     // --- Decode Data Iteratively ---
-    printf("\nDecoding Iteratively with Subtype Peeking:\n");
+    printf("\nDecoding Iteratively with Manual Peek/Read Loop:\n");
     cte_decoder_t *dec = cte_decoder_init(encoded_size);
     uint8_t *loadPtr = cte_decoder_load(dec);
     memcpy(loadPtr, encoded_data, encoded_size);
@@ -372,8 +400,24 @@ end_loop:;
     }
     else
     {
-        printf("\nSuccessfully decoded all fields. Final position matches encoded size.\n");
+        printf("\nSuccessfully decoded all fields with manual loop.\n");
     }
+
+    // --- Decode Data with Host Callback ---
+    printf("\nDecoding with Host Callback:\n");
+    cte_decoder_reset(dec);
+    int run_result = cte_decoder_run(dec);
+    printf("\nCallback decoding finished with result: %d\n", run_result);
+
+    if (dec->position != encoded_size)
+    {
+        printf("\nERROR: Final decoder position (%zu) does not match encoded size (%zu) after callback run!\n", dec->position, encoded_size);
+    }
+    else
+    {
+        printf("Successfully decoded all fields with callback handler.\n");
+    }
+
 
     printf("\n--- Test Complete ---\n");
     return 0;

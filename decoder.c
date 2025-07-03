@@ -2,18 +2,33 @@
 #include <stdlea.h>
 
 /**
+ * @brief Host-provided callback to handle decoded data fields.
+ *
+ * This function is implemented by the host (e.g., JavaScript) and is called
+ * by `cte_decoder_run` for each field it decodes.
+ *
+ * @param type The unique type identifier of the decoded field (see `CTE_PEEK_TYPE_*`).
+ * @param data A pointer to the buffer containing the field's data. For scalar
+ *             types, this points to a temporary variable holding the value.
+ * @param size The size of the data in bytes.
+ */
+LEA_IMPORT(env, __cte_data_handler)
+void __cte_data_handler(int type, const void *data, size_t size);
+
+/**
  * @brief Checks if reading `needed` bytes would exceed the buffer's bounds.
  * @param decoder A pointer to the decoder context.
  * @param needed The number of bytes required.
  * @note Aborts via `lea_abort` if bounds are exceeded.
  */
-#define CHECK_BOUNDS(decoder, needed)                     \
-do {                                                  \
-    if ((decoder)->position + (needed) > (decoder)->size) \
-    {                                                     \
-        lea_abort("Read past end of buffer");             \
-    }                                                     \
-} while (0)
+#define CHECK_BOUNDS(decoder, needed)                         \
+    do                                                        \
+    {                                                         \
+        if ((decoder)->position + (needed) > (decoder)->size) \
+        {                                                     \
+            lea_abort("Read past end of buffer");             \
+        }                                                     \
+    } while (0)
 
 /**
  * @brief Checks if reading `needed` bytes is possible without aborting.
@@ -29,13 +44,14 @@ do {                                                  \
  * @param expected_tag The expected 2-bit tag.
  * @note Aborts via `lea_abort` on mismatch.
  */
-#define CHECK_TAG(header, expected_tag)              \
-do {                                             \
-    if (((header) & CTE_TAG_MASK) != (expected_tag)) \
-    {                                                \
-        lea_abort("Unexpected field tag");           \
-    }                                                \
-} while (0)
+#define CHECK_TAG(header, expected_tag)                  \
+    do                                                   \
+    {                                                    \
+        if (((header) & CTE_TAG_MASK) != (expected_tag)) \
+        {                                                \
+            lea_abort("Unexpected field tag");           \
+        }                                                \
+    } while (0)
 
 /**
  * @brief Checks if a header's tag matches the expected tag without aborting.
@@ -372,9 +388,7 @@ int cte_decoder_peek_type(cte_decoder_t *decoder)
         break;
     }
     case CTE_TAG_VECTOR_DATA:
-        return (header_byte & CTE_VECTOR_FORMAT_FLAG_MASK)
-                   ? CTE_PEEK_TYPE_VECTOR_EXTENDED
-                   : CTE_PEEK_TYPE_VECTOR_SHORT;
+        return (header_byte & CTE_VECTOR_FORMAT_FLAG_MASK) ? CTE_PEEK_TYPE_VECTOR_EXTENDED : CTE_PEEK_TYPE_VECTOR_SHORT;
     }
 
     return -1; // Should not happen with valid CTE
@@ -677,3 +691,151 @@ size_t cte_decoder_get_last_vector_data_payload_length(const cte_decoder_t *deco
     }
     return decoder->last_vector_data_len;
 }
+
+LEA_EXPORT(cte_decoder_run)
+int cte_decoder_run(cte_decoder_t *decoder)
+{
+    if (!decoder)
+    {
+        lea_abort("Null decoder handle in run");
+        return -1;
+    }
+
+    // The first peek validates the version byte
+    int type = cte_decoder_peek_type(decoder);
+    if (type == CTE_PEEK_EOF)
+    {
+        return 0; // Empty but valid
+    }
+
+    while ((type = cte_decoder_peek_type(decoder)) != CTE_PEEK_EOF)
+    {
+        switch (type)
+        {
+        // --- Vectors ---
+        case CTE_PEEK_TYPE_PK_VECTOR_SIZE_0:
+        case CTE_PEEK_TYPE_PK_VECTOR_SIZE_1:
+        case CTE_PEEK_TYPE_PK_VECTOR_SIZE_2:
+        case CTE_PEEK_TYPE_PK_VECTOR_SIZE_3:
+        {
+            const uint8_t *data = cte_decoder_read_public_key_vector_data(decoder);
+            size_t count = cte_decoder_get_last_vector_count(decoder);
+            size_t item_size = get_public_key_size(type - CTE_PEEK_TYPE_PK_VECTOR_SIZE_0);
+            __cte_data_handler(type, data, count * item_size);
+            break;
+        }
+        case CTE_PEEK_TYPE_SIG_VECTOR_SIZE_0:
+        case CTE_PEEK_TYPE_SIG_VECTOR_SIZE_1:
+        case CTE_PEEK_TYPE_SIG_VECTOR_SIZE_2:
+        case CTE_PEEK_TYPE_SIG_VECTOR_SIZE_3:
+        {
+            const uint8_t *data = cte_decoder_read_signature_vector_data(decoder);
+            size_t count = cte_decoder_get_last_vector_count(decoder);
+            size_t item_size = get_signature_item_size(type - CTE_PEEK_TYPE_SIG_VECTOR_SIZE_0);
+            __cte_data_handler(type, data, count * item_size);
+            break;
+        }
+        // --- IxData ---
+        case CTE_PEEK_TYPE_IXDATA_VECTOR_INDEX:
+        {
+            uint8_t val = cte_decoder_read_ixdata_vector_index(decoder);
+            __cte_data_handler(type, &val, sizeof(val));
+            break;
+        }
+        case CTE_PEEK_TYPE_IXDATA_VARINT_ZERO:
+        {
+            cte_decoder_read_ixdata_varint_zero(decoder);
+            uint64_t val = 0;
+            __cte_data_handler(type, &val, sizeof(val));
+            break;
+        }
+        case CTE_PEEK_TYPE_IXDATA_ULEB128:
+        {
+            uint64_t val = cte_decoder_read_ixdata_uleb128(decoder);
+            __cte_data_handler(type, &val, sizeof(val));
+            break;
+        }
+        case CTE_PEEK_TYPE_IXDATA_SLEB128:
+        {
+            int64_t val = cte_decoder_read_ixdata_sleb128(decoder);
+            __cte_data_handler(type, &val, sizeof(val));
+            break;
+        }
+        case CTE_PEEK_TYPE_IXDATA_CONST_FALSE:
+        case CTE_PEEK_TYPE_IXDATA_CONST_TRUE:
+        {
+            bool val = cte_decoder_read_ixdata_boolean(decoder);
+            __cte_data_handler(type, &val, sizeof(val));
+            break;
+        }
+        // --- Vector Data ---
+        case CTE_PEEK_TYPE_VECTOR_SHORT:
+        case CTE_PEEK_TYPE_VECTOR_EXTENDED:
+        {
+            const uint8_t *data = cte_decoder_read_vector_data_payload(decoder);
+            size_t len = cte_decoder_get_last_vector_data_payload_length(decoder);
+            __cte_data_handler(type, data, len);
+            break;
+        }
+        default:
+            // For fixed-size data, we can create a generic handler
+            if (type >= CTE_PEEK_TYPE_IXDATA_INT8 && type <= CTE_PEEK_TYPE_IXDATA_FLOAT64)
+            {
+                uint8_t temp_buf[8]; // Max size for float64
+                size_t data_size = 0;
+                switch (type)
+                {
+                case CTE_PEEK_TYPE_IXDATA_INT8:
+                    *(int8_t *)temp_buf = cte_decoder_read_ixdata_int8(decoder);
+                    data_size = sizeof(int8_t);
+                    break;
+                case CTE_PEEK_TYPE_IXDATA_INT16:
+                    *(int16_t *)temp_buf = cte_decoder_read_ixdata_int16(decoder);
+                    data_size = sizeof(int16_t);
+                    break;
+                case CTE_PEEK_TYPE_IXDATA_INT32:
+                    *(int32_t *)temp_buf = cte_decoder_read_ixdata_int32(decoder);
+                    data_size = sizeof(int32_t);
+                    break;
+                case CTE_PEEK_TYPE_IXDATA_INT64:
+                    *(int64_t *)temp_buf = cte_decoder_read_ixdata_int64(decoder);
+                    data_size = sizeof(int64_t);
+                    break;
+                case CTE_PEEK_TYPE_IXDATA_UINT8:
+                    *(uint8_t *)temp_buf = cte_decoder_read_ixdata_uint8(decoder);
+                    data_size = sizeof(uint8_t);
+                    break;
+                case CTE_PEEK_TYPE_IXDATA_UINT16:
+                    *(uint16_t *)temp_buf = cte_decoder_read_ixdata_uint16(decoder);
+                    data_size = sizeof(uint16_t);
+                    break;
+                case CTE_PEEK_TYPE_IXDATA_UINT32:
+                    *(uint32_t *)temp_buf = cte_decoder_read_ixdata_uint32(decoder);
+                    data_size = sizeof(uint32_t);
+                    break;
+                case CTE_PEEK_TYPE_IXDATA_UINT64:
+                    *(uint64_t *)temp_buf = cte_decoder_read_ixdata_uint64(decoder);
+                    data_size = sizeof(uint64_t);
+                    break;
+                case CTE_PEEK_TYPE_IXDATA_FLOAT32:
+                    *(float *)temp_buf = cte_decoder_read_ixdata_float32(decoder);
+                    data_size = sizeof(float);
+                    break;
+                case CTE_PEEK_TYPE_IXDATA_FLOAT64:
+                    *(double *)temp_buf = cte_decoder_read_ixdata_float64(decoder);
+                    data_size = sizeof(double);
+                    break;
+                }
+                __cte_data_handler(type, temp_buf, data_size);
+            }
+            else
+            {
+                lea_abort("Unknown or unhandled peek type in run loop");
+                return -1;
+            }
+            break;
+        }
+    }
+    return 0;
+}
+
