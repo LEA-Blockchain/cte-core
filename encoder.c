@@ -114,7 +114,6 @@ static void write_fixed_data_internal(cte_encoder_t *handle, uint8_t type_code, 
 LEA_EXPORT(cte_encoder_init)
 cte_encoder_t *cte_encoder_init(size_t capacity)
 {
-    LEA_LOG("Initializing CTE encoder with capacity");
     if (capacity < 1)
     {
         lea_abort("Capacity must be at least 1 for the version byte");
@@ -124,7 +123,6 @@ cte_encoder_t *cte_encoder_init(size_t capacity)
     handle->buffer = malloc(capacity);
     handle->capacity = capacity;
     handle->position = 0;
-
     handle->buffer[handle->position++] = CTE_VERSION_BYTE;
 
     return handle;

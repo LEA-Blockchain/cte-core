@@ -82,6 +82,7 @@ async function main() {
             __cte_data_handler: (type, dataPtr, size) => {
                 // Not used in this minimal test
             },
+            memory: new WebAssembly.Memory({ initial: 2 }) // 2 page = 64 KiB
         }
     };
 
@@ -91,6 +92,7 @@ async function main() {
             __cte_data_handler: (type, dataPtr, size) => {
                 // Not used in this minimal test
             },
+            memory: new WebAssembly.Memory({ initial: 2 }) // 2 page = 64 KiB
         }
     };
 
@@ -110,7 +112,7 @@ async function main() {
     if (encExports.__lea_allocator_reset) encExports.__lea_allocator_reset();
     if (decExports.__lea_allocator_reset) decExports.__lea_allocator_reset();
     // --- 2. Encode Data ---
-    const enc = encExports.cte_encoder_init(80000);
+    const enc = encExports.cte_encoder_init(32768); // 32 KiB initial capacity
     console.log('Encoding all vector types and sizes:');
 
     // Test all Public Key Vector sizes
