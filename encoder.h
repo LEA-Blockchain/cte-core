@@ -69,41 +69,41 @@ const uint8_t *cte_encoder_get_data(const cte_encoder_t *handle);
 size_t cte_encoder_get_size(const cte_encoder_t *handle);
 
 /**
- * @brief Begins a Public Key List field.
+ * @brief Begins a Public Key Vector field.
  *
- * Writes the Public Key List header and reserves space for the key data.
+ * Writes the Public Key Vector header and reserves space for the key data.
  *
  * @param handle A pointer to the encoder context.
- * @param key_count The number of public keys in the list (1-15).
- * @param type_code The crypto scheme identifier (e.g., `CTE_CRYPTO_TYPE_ED25519`).
+ * @param key_count The number of public keys in the vector (1-15).
+ * @param size_code The entry size code for the keys.
  * @return A writable pointer to the start of the reserved space for key data.
  * @note The caller is responsible for `memcpy`ing the key data into the returned pointer.
  * @warning Aborts on invalid parameters or if the write would exceed buffer capacity.
  */
-void *cte_encoder_begin_public_key_list(cte_encoder_t *handle, uint8_t key_count, uint8_t type_code);
+void *cte_encoder_begin_public_key_vector(cte_encoder_t *handle, uint8_t key_count, uint8_t size_code);
 
 /**
- * @brief Begins a Signature List field.
+ * @brief Begins a Signature Vector field.
  *
- * Writes the Signature List header and reserves space for the signature data.
+ * Writes the Signature Vector header and reserves space for the signature data.
  *
  * @param handle A pointer to the encoder context.
- * @param sig_count The number of signatures or hashes in the list (1-15).
- * @param type_code The crypto scheme identifier (e.g., `CTE_CRYPTO_TYPE_ED25519`).
+ * @param sig_count The number of signatures or hashes in the vector (1-15).
+ * @param size_code The entry size code for the signatures.
  * @return A writable pointer to the start of the reserved space for signature data.
  * @note The caller is responsible for `memcpy`ing the signature data into the returned pointer.
  * @warning Aborts on invalid parameters or if the write would exceed buffer capacity.
  */
-void *cte_encoder_begin_signature_list(cte_encoder_t *handle, uint8_t sig_count, uint8_t type_code);
+void *cte_encoder_begin_signature_vector(cte_encoder_t *handle, uint8_t sig_count, uint8_t size_code);
 
 /**
- * @brief Writes an IxData Legacy Index Reference field.
+ * @brief Writes an IxData Vector Index field.
  *
  * @param handle A pointer to the encoder context.
  * @param index The 4-bit index value to encode (0-15).
  * @warning Aborts on invalid parameters or if the write would exceed buffer capacity.
  */
-void cte_encoder_write_ixdata_index_reference(cte_encoder_t *handle, uint8_t index);
+void cte_encoder_write_ixdata_vector_index(cte_encoder_t *handle, uint8_t index);
 
 /**
  * @brief Writes an IxData field for a ULEB128 encoded unsigned integer.
@@ -203,17 +203,18 @@ void cte_encoder_write_ixdata_float64(cte_encoder_t *handle, double value);
 void cte_encoder_write_ixdata_boolean(cte_encoder_t *handle, bool value);
 
 /**
- * @brief Begins a Command Data field.
+ * @brief Begins a generic Vector Data field.
  *
- * Writes the Command Data header, automatically selecting the short or extended
+ * Writes the Vector Data header, automatically selecting the short or extended
  * format based on the length. Reserves space for the payload.
  *
  * @param handle A pointer to the encoder context.
- * @param length The exact length of the command data payload (0-1197).
+ * @param length The exact length of the vector data payload (0-1197).
  * @return A writable pointer to the start of the reserved space for the payload.
  * @note The caller is responsible for `memcpy`ing the payload into the returned pointer.
  * @warning Aborts on invalid parameters or if the write would exceed buffer capacity.
  */
-void *cte_encoder_begin_command_data(cte_encoder_t *handle, size_t length);
+void *cte_encoder_begin_vector_data(cte_encoder_t *handle, size_t length);
+
 
 #endif // ENCODER_H

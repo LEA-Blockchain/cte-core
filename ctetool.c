@@ -41,10 +41,10 @@ void print_usage() {
     printf("  double:<val>                                double:1.23456789\n");
     printf("  bool:<true|false>                           bool:true\n");
     printf("  index:<0-15>                                index:5\n");
-    printf("  cmd:<hex_string>                            cmd:AABBCCDD\n");
-    printf("  pk-list-[type]:<hex_string>                 pk-list-ed25519:112233FF\n");
-    printf("  sig-list-[type]:<hex_string>                sig-list-slh128f:AABBCCEE\n");
-    printf("    [type] can be: ed25519, slh128f, slh192f, slh256f\n");
+    printf("  vec:<hex_string>                            vec:AABBCCDD\n");
+    printf("  pk-vec-[size]:<hex_string>                  pk-vec-32:112233FF\n");
+    printf("  sig-vec-[size]:<hex_string>                 sig-vec-64:AABBCCEE\n");
+    printf("    [size] can be: 32, 64, 128, 29792\n");
 }
 
 /**
@@ -225,15 +225,15 @@ void do_write(int argc, char *argv[]) {
                 fprintf(stderr, "Error: Invalid value for index: %s\n", value);
                 exit(1);
             }
-            cte_encoder_write_ixdata_index_reference(enc, (uint8_t)val);
-        } else if (strcmp(type, "cmd") == 0) {
+            cte_encoder_write_ixdata_vector_index(enc, (uint8_t)val);
+        } else if (strcmp(type, "vec") == 0) {
             uint8_t buffer[DEFAULT_BUFFER_SIZE];
             size_t len = hex_string_to_bytes(value, buffer, DEFAULT_BUFFER_SIZE);
             if (len == 0 && strlen(value) > 0) {
-                fprintf(stderr, "Error: Invalid hex string for cmd: %s\n", value);
+                fprintf(stderr, "Error: Invalid hex string for vec: %s\n", value);
                 exit(1);
             }
-            void *ptr = cte_encoder_begin_command_data(enc, len);
+            void *ptr = cte_encoder_begin_vector_data(enc, len);
             memcpy(ptr, buffer, len);
         } else {
             fprintf(stderr, "Error: Unknown field type '%s'.\n", type);
@@ -347,28 +347,28 @@ void do_read(int argc, char *argv[]) {
         printf("Type: %d, ", type);
 
         switch (type) {
-            case CTE_PEEK_TYPE_PK_LIST_ED25519:
-            case CTE_PEEK_TYPE_PK_LIST_SLH_128F:
-            case CTE_PEEK_TYPE_PK_LIST_SLH_192F:
-            case CTE_PEEK_TYPE_PK_LIST_SLH_256F:
+            case CTE_PEEK_TYPE_PK_VECTOR_SIZE_0:
+            case CTE_PEEK_TYPE_PK_VECTOR_SIZE_1:
+            case CTE_PEEK_TYPE_PK_VECTOR_SIZE_2:
+            case CTE_PEEK_TYPE_PK_VECTOR_SIZE_3:
                 {
-                    cte_decoder_read_public_key_list_data(dec);
-                    size_t count = cte_decoder_get_last_list_count(dec);
-                    printf("Public Key List, Count: %zu\n", count);
+                    cte_decoder_read_public_key_vector_data(dec);
+                    size_t count = cte_decoder_get_last_vector_count(dec);
+                    printf("Public Key Vector, Count: %zu\n", count);
                     break;
                 }
-            case CTE_PEEK_TYPE_SIG_LIST_ED25519:
-            case CTE_PEEK_TYPE_SIG_LIST_SLH_128F:
-            case CTE_PEEK_TYPE_SIG_LIST_SLH_192F:
-            case CTE_PEEK_TYPE_SIG_LIST_SLH_256F:
+            case CTE_PEEK_TYPE_SIG_VECTOR_SIZE_0:
+            case CTE_PEEK_TYPE_SIG_VECTOR_SIZE_1:
+            case CTE_PEEK_TYPE_SIG_VECTOR_SIZE_2:
+            case CTE_PEEK_TYPE_SIG_VECTOR_SIZE_3:
                 {
-                    cte_decoder_read_signature_list_data(dec);
-                    size_t count = cte_decoder_get_last_list_count(dec);
-                    printf("Signature List, Count: %zu\n", count);
+                    cte_decoder_read_signature_vector_data(dec);
+                    size_t count = cte_decoder_get_last_vector_count(dec);
+                    printf("Signature Vector, Count: %zu\n", count);
                     break;
                 }
-            case CTE_PEEK_TYPE_IXDATA_LEGACY_INDEX:
-                printf("IxData Legacy Index, Value: %u\n", cte_decoder_read_ixdata_index_reference(dec));
+            case CTE_PEEK_TYPE_IXDATA_VECTOR_INDEX:
+                printf("IxData Vector Index, Value: %u\n", cte_decoder_read_ixdata_vector_index(dec));
                 break;
             case CTE_PEEK_TYPE_IXDATA_VARINT_ZERO:
                 cte_decoder_read_ixdata_varint_zero(dec);
@@ -414,12 +414,12 @@ void do_read(int argc, char *argv[]) {
             case CTE_PEEK_TYPE_IXDATA_CONST_TRUE:
                 printf("IxData boolean, Value: %s\n", cte_decoder_read_ixdata_boolean(dec) ? "true" : "false");
                 break;
-            case CTE_PEEK_TYPE_CMD_SHORT:
-            case CTE_PEEK_TYPE_CMD_EXTENDED:
+            case CTE_PEEK_TYPE_VECTOR_SHORT:
+            case CTE_PEEK_TYPE_VECTOR_EXTENDED:
                 {
-                    cte_decoder_read_command_data_payload(dec);
-                    size_t len = cte_decoder_get_last_command_payload_length(dec);
-                    printf("Command Data, Length: %zu\n", len);
+                    cte_decoder_read_vector_data_payload(dec);
+                    size_t len = cte_decoder_get_last_vector_data_payload_length(dec);
+                    printf("Vector Data, Length: %zu\n", len);
                     break;
                 }
             default:

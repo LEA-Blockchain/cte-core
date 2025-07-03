@@ -8,34 +8,32 @@
 
 /**
  * @brief Gets a human-readable name for a given peek type identifier.
- * @param type The peek type identifier (e.g., CTE_PEEK_TYPE_PK_LIST_ED25519).
+ * @param type The peek type identifier (e.g., CTE_PEEK_TYPE_PK_VECTOR_SIZE_0).
  * @return A const character string representing the name.
  */
 const char *get_type_name(int type)
 {
     switch (type)
     {
-    // PK Lists
-    case CTE_PEEK_TYPE_PK_LIST_ED25519:
-        return "PK List ED25519";
-    case CTE_PEEK_TYPE_PK_LIST_SLH_128F:
-        return "PK List SLH_128F";
-    case CTE_PEEK_TYPE_PK_LIST_SLH_192F:
-        return "PK List SLH_192F";
-    case CTE_PEEK_TYPE_PK_LIST_SLH_256F:
-        return "PK List SLH_256F";
-    // Sig Lists
-    case CTE_PEEK_TYPE_SIG_LIST_ED25519:
-        return "Sig List ED25519";
-    case CTE_PEEK_TYPE_SIG_LIST_SLH_128F:
-        return "Sig List SLH_128F";
-    case CTE_PEEK_TYPE_SIG_LIST_SLH_192F:
-        return "Sig List SLH_192F";
-    case CTE_PEEK_TYPE_SIG_LIST_SLH_256F:
-        return "Sig List SLH_256F";
+    // PK Vectors
+    case CTE_PEEK_TYPE_PK_VECTOR_SIZE_0:
+        return "PK Vector (32-byte)";
+    case CTE_PEEK_TYPE_PK_VECTOR_SIZE_1:
+        return "PK Vector (64-byte)";
+    case CTE_PEEK_TYPE_PK_VECTOR_SIZE_2:
+        return "PK Vector (128-byte)";
+    // Sig Vectors
+    case CTE_PEEK_TYPE_SIG_VECTOR_SIZE_0:
+        return "Sig Vector (32-byte)";
+    case CTE_PEEK_TYPE_SIG_VECTOR_SIZE_1:
+        return "Sig Vector (64-byte)";
+    case CTE_PEEK_TYPE_SIG_VECTOR_SIZE_2:
+        return "Sig Vector (128-byte)";
+    case CTE_PEEK_TYPE_SIG_VECTOR_SIZE_3:
+        return "Sig Vector (29792-byte)";
     // IxData
-    case CTE_PEEK_TYPE_IXDATA_LEGACY_INDEX:
-        return "IxData Legacy Index";
+    case CTE_PEEK_TYPE_IXDATA_VECTOR_INDEX:
+        return "IxData Vector Index";
     case CTE_PEEK_TYPE_IXDATA_VARINT_ZERO:
         return "IxData Varint Zero";
     case CTE_PEEK_TYPE_IXDATA_ULEB128:
@@ -66,11 +64,11 @@ const char *get_type_name(int type)
         return "IxData Boolean False";
     case CTE_PEEK_TYPE_IXDATA_CONST_TRUE:
         return "IxData Boolean True";
-    // Command Data
-    case CTE_PEEK_TYPE_CMD_SHORT:
-        return "Command Data Short";
-    case CTE_PEEK_TYPE_CMD_EXTENDED:
-        return "Command Data Extended";
+    // Vector Data
+    case CTE_PEEK_TYPE_VECTOR_SHORT:
+        return "Vector Data Short";
+    case CTE_PEEK_TYPE_VECTOR_EXTENDED:
+        return "Vector Data Extended";
     default:
         return "Unknown Type";
     }
@@ -127,28 +125,28 @@ int main()
     printf("Encoding:\n");
 
     uint8_t key_count_enc = 2;
-    uint8_t key_type_enc = CTE_CRYPTO_TYPE_ED25519;
-    uint8_t dummy_keys[2 * CTE_PUBKEY_SIZE_ED25519];
+    uint8_t key_size_code_enc = CTE_VECTOR_ENTRY_SIZE_CODE_0; // 32-byte keys
+    uint8_t dummy_keys[2 * CTE_PUBKEY_SIZE_CODE_0];
     for (size_t i = 0; i < sizeof(dummy_keys); ++i)
         dummy_keys[i] = (uint8_t)(0xAA + i);
-    void *key_ptr = cte_encoder_begin_public_key_list(enc, key_count_enc, key_type_enc);
+    void *key_ptr = cte_encoder_begin_public_key_vector(enc, key_count_enc, key_size_code_enc);
     memcpy(key_ptr, dummy_keys, sizeof(dummy_keys));
-    printf("  - Public Key List (Type: %u, Count: %u)\n", key_type_enc, key_count_enc);
+    printf("  - Public Key Vector (Size Code: %u, Count: %u)\n", key_size_code_enc, key_count_enc);
 
-    cte_encoder_write_ixdata_index_reference(enc, 1);
-    printf("  - IxData Legacy Index (1)\n");
+    cte_encoder_write_ixdata_vector_index(enc, 1);
+    printf("  - IxData Vector Index (1)\n");
 
     uint8_t sig_count_enc = 1;
-    uint8_t sig_type_enc = CTE_CRYPTO_TYPE_SLH_DSA_128F;
-    uint8_t dummy_sig_hash[CTE_SIGNATURE_HASH_SIZE_PQC];
-    for (size_t i = 0; i < sizeof(dummy_sig_hash); ++i)
-        dummy_sig_hash[i] = (uint8_t)(0xBB + i);
-    void *sig_ptr = cte_encoder_begin_signature_list(enc, sig_count_enc, sig_type_enc);
-    memcpy(sig_ptr, dummy_sig_hash, sizeof(dummy_sig_hash));
-    printf("  - Signature List (Type: %u, Count: %u)\n", sig_type_enc, sig_count_enc);
+    uint8_t sig_size_code_enc = CTE_VECTOR_ENTRY_SIZE_CODE_1; // 64-byte sigs
+    uint8_t dummy_sig[1 * CTE_SIGNATURE_SIZE_CODE_1];
+    for (size_t i = 0; i < sizeof(dummy_sig); ++i)
+        dummy_sig[i] = (uint8_t)(0xBB + i);
+    void *sig_ptr = cte_encoder_begin_signature_vector(enc, sig_count_enc, sig_size_code_enc);
+    memcpy(sig_ptr, dummy_sig, sizeof(dummy_sig));
+    printf("  - Signature Vector (Size Code: %u, Count: %u)\n", sig_size_code_enc, sig_count_enc);
 
-    cte_encoder_write_ixdata_index_reference(enc, 0);
-    printf("  - IxData Legacy Index (0)\n");
+    cte_encoder_write_ixdata_vector_index(enc, 0);
+    printf("  - IxData Vector Index (0)\n");
 
     uint64_t uleb_val_enc = 123456;
     cte_encoder_write_ixdata_uleb128(enc, uleb_val_enc);
@@ -201,17 +199,17 @@ int main()
 
     const char *short_cmd_enc = "Short payload";
     size_t short_len_enc = strlen(short_cmd_enc);
-    void *cmd_ptr_short = cte_encoder_begin_command_data(enc, short_len_enc);
+    void *cmd_ptr_short = cte_encoder_begin_vector_data(enc, short_len_enc);
     memcpy(cmd_ptr_short, short_cmd_enc, short_len_enc);
-    printf("  - Command Data (Short, Len: %zu)\n", short_len_enc);
+    printf("  - Vector Data (Short, Len: %zu)\n", short_len_enc);
 
     char long_cmd_enc[200];
     memset(long_cmd_enc, 'L', sizeof(long_cmd_enc));
     long_cmd_enc[199] = '\0';
     size_t long_len_enc = 150;
-    void *cmd_ptr_long = cte_encoder_begin_command_data(enc, long_len_enc);
+    void *cmd_ptr_long = cte_encoder_begin_vector_data(enc, long_len_enc);
     memcpy(cmd_ptr_long, long_cmd_enc, long_len_enc);
-    printf("  - Command Data (Extended, Len: %zu)\n", long_len_enc);
+    printf("  - Vector Data (Extended, Len: %zu)\n", long_len_enc);
 
     const uint8_t *encoded_data = cte_encoder_get_data(enc);
     size_t encoded_size = cte_encoder_get_size(enc);
@@ -237,24 +235,24 @@ int main()
 
         switch (type)
         {
-        case CTE_PEEK_TYPE_PK_LIST_ED25519:
+        case CTE_PEEK_TYPE_PK_VECTOR_SIZE_0:
         {
-            const uint8_t *data = cte_decoder_read_public_key_list_data(dec);
-            printf("  - Read PubKey List. New Pos: %zu\n", dec->position);
+            const uint8_t *data = cte_decoder_read_public_key_vector_data(dec);
+            printf("  - Read PubKey Vector. New Pos: %zu\n", dec->position);
             if (memcmp(data, dummy_keys, sizeof(dummy_keys)) != 0) printf("  - ERROR: Key data mismatch!\n");
             break;
         }
-        case CTE_PEEK_TYPE_SIG_LIST_SLH_128F:
+        case CTE_PEEK_TYPE_SIG_VECTOR_SIZE_1:
         {
-            const uint8_t *data = cte_decoder_read_signature_list_data(dec);
-            printf("  - Read Sig List. New Pos: %zu\n", dec->position);
-            if (memcmp(data, dummy_sig_hash, sizeof(dummy_sig_hash)) != 0) printf("  - ERROR: Sig data mismatch!\n");
+            const uint8_t *data = cte_decoder_read_signature_vector_data(dec);
+            printf("  - Read Sig Vector. New Pos: %zu\n", dec->position);
+            if (memcmp(data, dummy_sig, sizeof(dummy_sig)) != 0) printf("  - ERROR: Sig data mismatch!\n");
             break;
         }
-        case CTE_PEEK_TYPE_IXDATA_LEGACY_INDEX:
+        case CTE_PEEK_TYPE_IXDATA_VECTOR_INDEX:
         {
-            uint8_t index = cte_decoder_read_ixdata_index_reference(dec);
-            printf("  - Read IxData Legacy Index: %u. New Pos: %zu\n", index, dec->position);
+            uint8_t index = cte_decoder_read_ixdata_vector_index(dec);
+            printf("  - Read IxData Vector Index: %u. New Pos: %zu\n", index, dec->position);
             if (ix_legacy_count == 0 && index != 1) printf("  - ERROR: First index mismatch!\n");
             if (ix_legacy_count == 1 && index != 0) printf("  - ERROR: Second index mismatch!\n");
             ix_legacy_count++;
@@ -347,17 +345,17 @@ int main()
             ix_const_count++;
             break;
         }
-        case CTE_PEEK_TYPE_CMD_SHORT:
+        case CTE_PEEK_TYPE_VECTOR_SHORT:
         {
-            const uint8_t *data = cte_decoder_read_command_data_payload(dec);
-            printf("  - Read Command Data. New Pos: %zu\n", dec->position);
+            const uint8_t *data = cte_decoder_read_vector_data_payload(dec);
+            printf("  - Read Vector Data. New Pos: %zu\n", dec->position);
             if (memcmp(data, short_cmd_enc, short_len_enc) != 0) printf("  - ERROR: Short data mismatch!\n");
             break;
         }
-        case CTE_PEEK_TYPE_CMD_EXTENDED:
+        case CTE_PEEK_TYPE_VECTOR_EXTENDED:
         {
-            const uint8_t *data = cte_decoder_read_command_data_payload(dec);
-            printf("  - Read Command Data. New Pos: %zu\n", dec->position);
+            const uint8_t *data = cte_decoder_read_vector_data_payload(dec);
+            printf("  - Read Vector Data. New Pos: %zu\n", dec->position);
             if (memcmp(data, long_cmd_enc, long_len_enc) != 0) printf("  - ERROR: Long data mismatch!\n");
             break;
         }

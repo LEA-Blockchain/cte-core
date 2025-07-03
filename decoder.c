@@ -8,10 +8,12 @@
  * @note Aborts via `lea_abort` if bounds are exceeded.
  */
 #define CHECK_BOUNDS(decoder, needed)                     \
+do {                                                  \
     if ((decoder)->position + (needed) > (decoder)->size) \
     {                                                     \
         lea_abort("Read past end of buffer");             \
-    }
+    }                                                     \
+} while (0)
 
 /**
  * @brief Checks if reading `needed` bytes is possible without aborting.
@@ -28,10 +30,12 @@
  * @note Aborts via `lea_abort` on mismatch.
  */
 #define CHECK_TAG(header, expected_tag)              \
+do {                                             \
     if (((header) & CTE_TAG_MASK) != (expected_tag)) \
     {                                                \
         lea_abort("Unexpected field tag");           \
-    }
+    }                                                \
+} while (0)
 
 /**
  * @brief Checks if a header's tag matches the expected tag without aborting.
@@ -40,26 +44,6 @@
  * @return `true` if the tags match, `false` otherwise.
  */
 #define CHECK_TAG_PEEK(header, expected_tag) (((header) & CTE_TAG_MASK) == (expected_tag))
-
-/**
- * @brief Checks if padding bits within a value are zero.
- * @param value The value containing padding bits.
- * @param mask The bitmask to isolate the padding bits.
- * @param context A string describing the context for the error message.
- * @note Aborts via `lea_abort` if any padding bits are non-zero.
- */
-#define CHECK_PADDING_ZERO(value, mask, context)        \
-    if (((value) & (mask)) != 0)                        \
-    {\n        lea_abort("Non-zero padding bits in " context); \
-    }
-
-/**
- * @brief Checks if padding bits are zero without aborting.
- * @param value The value containing padding bits.
- * @param mask The bitmask to isolate the padding bits.
- * @return `true` if padding is valid (zero), `false` otherwise.
- */
-#define CHECK_PADDING_ZERO_PEEK(value, mask) (((value) & (mask)) == 0)
 
 /**
  * @brief Peeks at the next byte in the buffer without advancing the position.
@@ -207,13 +191,13 @@ static void _read_fixed_data(cte_decoder_t *decoder, uint8_t expected_type_code,
 }
 
 /**
- * @brief Parses a Command Data header to determine its length and size.
+ * @brief Parses a Vector Data header to determine its length and size.
  * @param decoder A pointer to the decoder context.
  * @param out_header_size A pointer to store the size of the header (1 or 2 bytes).
  * @return The length of the payload, or `SIZE_MAX` on error.
  * @note Internal helper function. Aborts on invalid header format.
  */
-static size_t _parse_command_data_header(const cte_decoder_t *decoder, size_t *out_header_size)
+static size_t _parse_vector_data_header(const cte_decoder_t *decoder, size_t *out_header_size)
 {
     size_t current_pos = decoder->position;
 
@@ -224,24 +208,20 @@ static size_t _parse_command_data_header(const cte_decoder_t *decoder, size_t *o
     }
     uint8_t header1 = decoder->data[current_pos];
 
-    if (!CHECK_TAG_PEEK(header1, CTE_TAG_COMMAND_DATA))
+    if (!CHECK_TAG_PEEK(header1, CTE_TAG_VECTOR_DATA))
     {
-        lea_abort("Expected Command Data tag in peek/parse");
+        lea_abort("Expected Vector Data tag in peek/parse");
         return SIZE_MAX;
     }
 
     size_t length = 0;
-    if ((header1 & CTE_COMMAND_FORMAT_FLAG_MASK) == CTE_COMMAND_FORMAT_SHORT)
+    if ((header1 & CTE_VECTOR_FORMAT_FLAG_MASK) == CTE_VECTOR_FORMAT_SHORT)
     {
         *out_header_size = 1;
-        length = header1 & CTE_COMMAND_SHORT_MAX_LEN;
+        length = header1 & CTE_VECTOR_SHORT_MAX_LEN;
     }
     else
     {
-        if (!CHECK_PADDING_ZERO_PEEK(header1, 0x03))
-        {
-            lea_abort("Non-zero padding bits in Command Data Extended Header Byte 1");
-        }
         if (!CHECK_BOUNDS_PEEK(decoder, 2))
         {
             *out_header_size = 0;
@@ -254,25 +234,14 @@ static size_t _parse_command_data_header(const cte_decoder_t *decoder, size_t *o
         size_t LL = header2;
         length = (LH << 8) | LL;
 
-        if (length < CTE_COMMAND_EXTENDED_MIN_LEN || length > CTE_COMMAND_EXTENDED_MAX_LEN)
+        if (length < CTE_VECTOR_EXTENDED_MIN_LEN || length > CTE_VECTOR_EXTENDED_MAX_LEN)
         {
-            lea_abort("Invalid extended command data length");
+            lea_abort("Invalid extended vector data length");
         }
     }
     return length;
 }
 
-/**
- * @brief Initializes a new CTE decoder context and its buffer.
- *
- * Allocates memory for the decoder structure and its internal buffer of the
- * specified size. The caller must load the encoded data into the buffer
- * via `cte_decoder_load()` before parsing.
- *
- * @param size The exact size in bytes of the CTE data that will be loaded.
- * @return A pointer to the newly created decoder context.
- * @note This function will abort via `lea_abort` if size is 0 or exceeds `CTE_MAX_TRANSACTION_SIZE`.
- */
 LEA_EXPORT(cte_decoder_init)
 cte_decoder_t *cte_decoder_init(size_t size)
 {
@@ -289,36 +258,18 @@ cte_decoder_t *cte_decoder_init(size_t size)
     decoder->data = malloc(size);
     decoder->size = size;
     decoder->position = 0;
-    decoder->last_list_count = 0;
-    decoder->last_cmd_len = 0;
+    decoder->last_vector_count = 0;
+    decoder->last_vector_data_len = 0;
 
     return decoder;
 }
 
-/**
- * @brief Returns a writable pointer to the decoder's internal buffer.
- *
- * This function should be used to load the encoded CTE data into the buffer
- * after initialization and before any read/peek operations.
- *
- * @param decoder A pointer to the initialized decoder context.
- * @return A writable pointer to the internal data buffer.
- */
 LEA_EXPORT(cte_decoder_load)
 uint8_t *cte_decoder_load(cte_decoder_t *decoder)
 {
     return decoder->data;
 }
 
-/**
- * @brief Resets the decoder's read position for buffer reuse.
- *
- * Resets the position to 1 (to skip the version byte), allowing the same
- * loaded data to be parsed again from the beginning.
- *
- * @param decoder A pointer to the decoder context to reset.
- * @note This function will abort via `lea_abort` if the decoder handle is NULL.
- */
 LEA_EXPORT(cte_decoder_reset)
 void cte_decoder_reset(cte_decoder_t *decoder)
 {
@@ -329,16 +280,6 @@ void cte_decoder_reset(cte_decoder_t *decoder)
     decoder->position = 1;
 }
 
-/**
- * @brief Peeks at the next byte to determine the field tag.
- *
- * Does not advance the read position. If this is the first read operation,
- * it validates the version byte and advances the position past it.
- *
- * @param decoder A pointer to the decoder context.
- * @return The 2-bit tag value (e.g., `CTE_TAG_PUBLIC_KEY_LIST`), or -1 on EOF.
- * @note This function will abort if the version byte is incorrect.
- */
 LEA_EXPORT(cte_decoder_peek_type)
 int cte_decoder_peek_type(cte_decoder_t *decoder)
 {
@@ -364,37 +305,15 @@ int cte_decoder_peek_type(cte_decoder_t *decoder)
 
     switch (tag)
     {
-    case CTE_TAG_PUBLIC_KEY_LIST:
+    case CTE_TAG_PUBLIC_KEY_VECTOR:
     {
-        uint8_t crypto_type = header_byte & CTE_CRYPTO_TYPE_MASK;
-        switch (crypto_type)
-        {
-        case CTE_CRYPTO_TYPE_ED25519:
-            return CTE_PEEK_TYPE_PK_LIST_ED25519;
-        case CTE_CRYPTO_TYPE_SLH_DSA_128F:
-            return CTE_PEEK_TYPE_PK_LIST_SLH_128F;
-        case CTE_CRYPTO_TYPE_SLH_DSA_192F:
-            return CTE_PEEK_TYPE_PK_LIST_SLH_192F;
-        case CTE_CRYPTO_TYPE_SLH_DSA_256F:
-            return CTE_PEEK_TYPE_PK_LIST_SLH_256F;
-        }
-        break;
+        uint8_t size_code = header_byte & CTE_VECTOR_ENTRY_SIZE_MASK;
+        return CTE_PEEK_TYPE_PK_VECTOR_SIZE_0 + size_code;
     }
-    case CTE_TAG_SIGNATURE_LIST:
+    case CTE_TAG_SIGNATURE_VECTOR:
     {
-        uint8_t crypto_type = header_byte & CTE_CRYPTO_TYPE_MASK;
-        switch (crypto_type)
-        {
-        case CTE_CRYPTO_TYPE_ED25519:
-            return CTE_PEEK_TYPE_SIG_LIST_ED25519;
-        case CTE_CRYPTO_TYPE_SLH_DSA_128F:
-            return CTE_PEEK_TYPE_SIG_LIST_SLH_128F;
-        case CTE_CRYPTO_TYPE_SLH_DSA_192F:
-            return CTE_PEEK_TYPE_SIG_LIST_SLH_192F;
-        case CTE_CRYPTO_TYPE_SLH_DSA_256F:
-            return CTE_PEEK_TYPE_SIG_LIST_SLH_256F;
-        }
-        break;
+        uint8_t size_code = header_byte & CTE_VECTOR_ENTRY_SIZE_MASK;
+        return CTE_PEEK_TYPE_SIG_VECTOR_SIZE_0 + size_code;
     }
     case CTE_TAG_IXDATA_FIELD:
     {
@@ -402,8 +321,8 @@ int cte_decoder_peek_type(cte_decoder_t *decoder)
         uint8_t detail_code = (header_byte >> 2) & 0x0F;
         switch (ss)
         {
-        case CTE_IXDATA_SUBTYPE_LEGACY_INDEX:
-            return CTE_PEEK_TYPE_IXDATA_LEGACY_INDEX;
+        case CTE_IXDATA_SUBTYPE_VECTOR_INDEX:
+            return CTE_PEEK_TYPE_IXDATA_VECTOR_INDEX;
         case CTE_IXDATA_SUBTYPE_VARINT:
             switch (detail_code)
             {
@@ -452,42 +371,33 @@ int cte_decoder_peek_type(cte_decoder_t *decoder)
         }
         break;
     }
-    case CTE_TAG_COMMAND_DATA:
-        return (header_byte & CTE_COMMAND_FORMAT_FLAG_MASK)
-                   ? CTE_PEEK_TYPE_CMD_EXTENDED
-                   : CTE_PEEK_TYPE_CMD_SHORT;
+    case CTE_TAG_VECTOR_DATA:
+        return (header_byte & CTE_VECTOR_FORMAT_FLAG_MASK)
+                   ? CTE_PEEK_TYPE_VECTOR_EXTENDED
+                   : CTE_PEEK_TYPE_VECTOR_SHORT;
     }
 
     return -1; // Should not happen with valid CTE
 }
 
-
-
-/**
- * @brief Reads and consumes a Public Key List field.
- *
- * @param decoder A pointer to the decoder context.
- * @return A read-only pointer to the start of the key data within the decoder's buffer.
- * @warning Aborts on errors (wrong tag, invalid N/TT, insufficient data).
- */
-LEA_EXPORT(cte_decoder_read_public_key_list_data)
-const uint8_t *cte_decoder_read_public_key_list_data(cte_decoder_t *decoder)
+LEA_EXPORT(cte_decoder_read_public_key_vector_data)
+const uint8_t *cte_decoder_read_public_key_vector_data(cte_decoder_t *decoder)
 {
     if (!decoder)
     {
-        lea_abort("Null decoder handle in read_public_key_list_data");
+        lea_abort("Null decoder handle in read_public_key_vector_data");
     }
     CHECK_BOUNDS(decoder, 1);
     uint8_t header = decoder->data[decoder->position];
 
-    CHECK_TAG(header, CTE_TAG_PUBLIC_KEY_LIST);
+    CHECK_TAG(header, CTE_TAG_PUBLIC_KEY_VECTOR);
 
     uint8_t N = (header >> 2) & 0x0F;
-    uint8_t TT = header & CTE_CRYPTO_TYPE_MASK;
+    uint8_t TT = header & CTE_VECTOR_ENTRY_SIZE_MASK;
 
-    if (N == 0 || N > CTE_LIST_MAX_LEN)
+    if (N == 0 || N > CTE_VECTOR_MAX_LEN)
     {
-        lea_abort("Invalid public key list length read (N must be 1-15)");
+        lea_abort("Invalid public key vector length read (N must be 1-15)");
     }
 
     size_t item_size = get_public_key_size(TT);
@@ -496,7 +406,7 @@ const uint8_t *cte_decoder_read_public_key_list_data(cte_decoder_t *decoder)
     CHECK_BOUNDS(decoder, 1 + total_data_size);
 
     decoder->position++;
-    decoder->last_list_count = N;
+    decoder->last_vector_count = N;
 
     const uint8_t *data_ptr = decoder->data + decoder->position;
     decoder->position += total_data_size;
@@ -504,33 +414,24 @@ const uint8_t *cte_decoder_read_public_key_list_data(cte_decoder_t *decoder)
     return data_ptr;
 }
 
-
-
-/**
- * @brief Reads and consumes a Signature List field.
- *
- * @param decoder A pointer to the decoder context.
- * @return A read-only pointer to the start of the signature data within the decoder's buffer.
- * @warning Aborts on errors (wrong tag, invalid N/TT, insufficient data).
- */
-LEA_EXPORT(cte_decoder_read_signature_list_data)
-const uint8_t *cte_decoder_read_signature_list_data(cte_decoder_t *decoder)
+LEA_EXPORT(cte_decoder_read_signature_vector_data)
+const uint8_t *cte_decoder_read_signature_vector_data(cte_decoder_t *decoder)
 {
     if (!decoder)
     {
-        lea_abort("Null decoder handle in read_signature_list_data");
+        lea_abort("Null decoder handle in read_signature_vector_data");
     }
     CHECK_BOUNDS(decoder, 1);
     uint8_t header = decoder->data[decoder->position];
 
-    CHECK_TAG(header, CTE_TAG_SIGNATURE_LIST);
+    CHECK_TAG(header, CTE_TAG_SIGNATURE_VECTOR);
 
     uint8_t N = (header >> 2) & 0x0F;
-    uint8_t TT = header & CTE_CRYPTO_TYPE_MASK;
+    uint8_t TT = header & CTE_VECTOR_ENTRY_SIZE_MASK;
 
-    if (N == 0 || N > CTE_LIST_MAX_LEN)
+    if (N == 0 || N > CTE_VECTOR_MAX_LEN)
     {
-        lea_abort("Invalid signature list length read (N must be 1-15)");
+        lea_abort("Invalid signature vector length read (N must be 1-15)");
     }
 
     size_t item_size = get_signature_item_size(TT);
@@ -539,7 +440,7 @@ const uint8_t *cte_decoder_read_signature_list_data(cte_decoder_t *decoder)
     CHECK_BOUNDS(decoder, 1 + total_data_size);
 
     decoder->position++;
-    decoder->last_list_count = N;
+    decoder->last_vector_count = N;
 
     const uint8_t *data_ptr = decoder->data + decoder->position;
     decoder->position += total_data_size;
@@ -547,34 +448,20 @@ const uint8_t *cte_decoder_read_signature_list_data(cte_decoder_t *decoder)
     return data_ptr;
 }
 
-/**
- * @brief Reads an IxData Legacy Index Reference field.
- *
- * @param decoder A pointer to the decoder context.
- * @return The decoded 4-bit index value (0-15).
- * @warning Aborts on errors (wrong tag/subtype, insufficient data).
- */
-LEA_EXPORT(cte_decoder_read_ixdata_index_reference)
-uint8_t cte_decoder_read_ixdata_index_reference(cte_decoder_t *decoder)
+LEA_EXPORT(cte_decoder_read_ixdata_vector_index)
+uint8_t cte_decoder_read_ixdata_vector_index(cte_decoder_t *decoder)
 {
     if (!decoder)
     {
-        lea_abort("Null decoder handle in read_ixdata_legacy_index");
+        lea_abort("Null decoder handle in read_ixdata_vector_index");
     }
-    uint8_t header = _consume_ixdata_header(decoder, CTE_IXDATA_SUBTYPE_LEGACY_INDEX);
+    uint8_t header = _consume_ixdata_header(decoder, CTE_IXDATA_SUBTYPE_VECTOR_INDEX);
 
     uint8_t index = (header >> 2) & 0x0F;
 
     return index;
 }
 
-/**
- * @brief Reads an IxData ULEB128 encoded unsigned integer field.
- *
- * @param decoder A pointer to the decoder context.
- * @return The decoded `uint64_t` value.
- * @warning Aborts on errors (wrong tag/subtype, invalid encoding, insufficient data).
- */
 LEA_EXPORT(cte_decoder_read_ixdata_uleb128)
 uint64_t cte_decoder_read_ixdata_uleb128(cte_decoder_t *decoder)
 {
@@ -599,13 +486,6 @@ uint64_t cte_decoder_read_ixdata_uleb128(cte_decoder_t *decoder)
     return value;
 }
 
-/**
- * @brief Reads an IxData SLEB128 encoded signed integer field.
- *
- * @param decoder A pointer to the decoder context.
- * @return The decoded `int64_t` value.
- * @warning Aborts on errors (wrong tag/subtype, invalid encoding, insufficient data).
- */
 LEA_EXPORT(cte_decoder_read_ixdata_sleb128)
 int64_t cte_decoder_read_ixdata_sleb128(cte_decoder_t *decoder)
 {
@@ -630,11 +510,6 @@ int64_t cte_decoder_read_ixdata_sleb128(cte_decoder_t *decoder)
     return value;
 }
 
-/**
- * @brief Reads an IxData signed 8-bit integer field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `int8_t` value.
- */
 LEA_EXPORT(cte_decoder_read_ixdata_int8)
 int8_t cte_decoder_read_ixdata_int8(cte_decoder_t *decoder)
 {
@@ -643,11 +518,6 @@ int8_t cte_decoder_read_ixdata_int8(cte_decoder_t *decoder)
     return value;
 }
 
-/**
- * @brief Reads an IxData signed 16-bit integer field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `int16_t` value.
- */
 LEA_EXPORT(cte_decoder_read_ixdata_int16)
 int16_t cte_decoder_read_ixdata_int16(cte_decoder_t *decoder)
 {
@@ -656,11 +526,6 @@ int16_t cte_decoder_read_ixdata_int16(cte_decoder_t *decoder)
     return value;
 }
 
-/**
- * @brief Reads an IxData signed 32-bit integer field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `int32_t` value.
- */
 LEA_EXPORT(cte_decoder_read_ixdata_int32)
 int32_t cte_decoder_read_ixdata_int32(cte_decoder_t *decoder)
 {
@@ -669,11 +534,6 @@ int32_t cte_decoder_read_ixdata_int32(cte_decoder_t *decoder)
     return value;
 }
 
-/**
- * @brief Reads an IxData signed 64-bit integer field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `int64_t` value.
- */
 LEA_EXPORT(cte_decoder_read_ixdata_int64)
 int64_t cte_decoder_read_ixdata_int64(cte_decoder_t *decoder)
 {
@@ -682,11 +542,6 @@ int64_t cte_decoder_read_ixdata_int64(cte_decoder_t *decoder)
     return value;
 }
 
-/**
- * @brief Reads an IxData unsigned 8-bit integer field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `uint8_t` value.
- */
 LEA_EXPORT(cte_decoder_read_ixdata_uint8)
 uint8_t cte_decoder_read_ixdata_uint8(cte_decoder_t *decoder)
 {
@@ -695,11 +550,6 @@ uint8_t cte_decoder_read_ixdata_uint8(cte_decoder_t *decoder)
     return value;
 }
 
-/**
- * @brief Reads an IxData unsigned 16-bit integer field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `uint16_t` value.
- */
 LEA_EXPORT(cte_decoder_read_ixdata_uint16)
 uint16_t cte_decoder_read_ixdata_uint16(cte_decoder_t *decoder)
 {
@@ -708,11 +558,6 @@ uint16_t cte_decoder_read_ixdata_uint16(cte_decoder_t *decoder)
     return value;
 }
 
-/**
- * @brief Reads an IxData unsigned 32-bit integer field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `uint32_t` value.
- */
 LEA_EXPORT(cte_decoder_read_ixdata_uint32)
 uint32_t cte_decoder_read_ixdata_uint32(cte_decoder_t *decoder)
 {
@@ -721,11 +566,6 @@ uint32_t cte_decoder_read_ixdata_uint32(cte_decoder_t *decoder)
     return value;
 }
 
-/**
- * @brief Reads an IxData unsigned 64-bit integer field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `uint64_t` value.
- */
 LEA_EXPORT(cte_decoder_read_ixdata_uint64)
 uint64_t cte_decoder_read_ixdata_uint64(cte_decoder_t *decoder)
 {
@@ -734,11 +574,6 @@ uint64_t cte_decoder_read_ixdata_uint64(cte_decoder_t *decoder)
     return value;
 }
 
-/**
- * @brief Reads an IxData 32-bit float field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `float` value.
- */
 LEA_EXPORT(cte_decoder_read_ixdata_float32)
 float cte_decoder_read_ixdata_float32(cte_decoder_t *decoder)
 {
@@ -747,11 +582,6 @@ float cte_decoder_read_ixdata_float32(cte_decoder_t *decoder)
     return value;
 }
 
-/**
- * @brief Reads an IxData 64-bit double field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `double` value.
- */
 LEA_EXPORT(cte_decoder_read_ixdata_float64)
 double cte_decoder_read_ixdata_float64(cte_decoder_t *decoder)
 {
@@ -760,13 +590,6 @@ double cte_decoder_read_ixdata_float64(cte_decoder_t *decoder)
     return value;
 }
 
-/**
- * @brief Reads an IxData boolean constant field.
- *
- * @param decoder A pointer to the decoder context.
- * @return The decoded boolean value (`true` or `false`).
- * @warning Aborts on errors (wrong tag/subtype, invalid constant code).
- */
 LEA_EXPORT(cte_decoder_read_ixdata_boolean)
 bool cte_decoder_read_ixdata_boolean(cte_decoder_t *decoder)
 {
@@ -792,34 +615,25 @@ bool cte_decoder_read_ixdata_boolean(cte_decoder_t *decoder)
     }
 }
 
-
-
-/**
- * @brief Reads and consumes a Command Data field.
- *
- * @param decoder A pointer to the decoder context.
- * @return A read-only pointer to the start of the payload data within the decoder's buffer.
- * @warning Aborts on errors (wrong tag, invalid format, insufficient data).
- */
-LEA_EXPORT(cte_decoder_read_command_data_payload)
-const uint8_t *cte_decoder_read_command_data_payload(cte_decoder_t *decoder)
+LEA_EXPORT(cte_decoder_read_vector_data_payload)
+const uint8_t *cte_decoder_read_vector_data_payload(cte_decoder_t *decoder)
 {
     if (!decoder)
     {
-        lea_abort("Null decoder handle in read_command_data_payload");
+        lea_abort("Null decoder handle in read_vector_data_payload");
     }
 
     size_t header_size;
-    size_t length = _parse_command_data_header(decoder, &header_size);
+    size_t length = _parse_vector_data_header(decoder, &header_size);
     if (length == SIZE_MAX || header_size == 0)
     {
-        lea_abort("Failed to parse command data header before read (EOF or internal error)");
+        lea_abort("Failed to parse vector data header before read (EOF or internal error)");
     }
 
     CHECK_BOUNDS(decoder, header_size + length);
 
     decoder->position += header_size;
-    decoder->last_cmd_len = length;
+    decoder->last_vector_data_len = length;
 
     const uint8_t *payload_ptr = decoder->data + decoder->position;
 
@@ -844,22 +658,22 @@ void cte_decoder_read_ixdata_varint_zero(cte_decoder_t *decoder)
     }
 }
 
-LEA_EXPORT(cte_decoder_get_last_list_count)
-size_t cte_decoder_get_last_list_count(const cte_decoder_t *decoder)
+LEA_EXPORT(cte_decoder_get_last_vector_count)
+size_t cte_decoder_get_last_vector_count(const cte_decoder_t *decoder)
 {
     if (!decoder)
     {
-        lea_abort("Null decoder handle in get_last_list_count");
+        lea_abort("Null decoder handle in get_last_vector_count");
     }
-    return decoder->last_list_count;
+    return decoder->last_vector_count;
 }
 
-LEA_EXPORT(cte_decoder_get_last_command_payload_length)
-size_t cte_decoder_get_last_command_payload_length(const cte_decoder_t *decoder)
+LEA_EXPORT(cte_decoder_get_last_vector_data_payload_length)
+size_t cte_decoder_get_last_vector_data_payload_length(const cte_decoder_t *decoder)
 {
     if (!decoder)
     {
-        lea_abort("Null decoder handle in get_last_command_payload_length");
+        lea_abort("Null decoder handle in get_last_vector_data_payload_length");
     }
-    return decoder->last_cmd_len;
+    return decoder->last_vector_data_len;
 }
