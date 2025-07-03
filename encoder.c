@@ -415,7 +415,6 @@ void cte_encoder_write_ixdata_boolean(cte_encoder_t *handle, bool value)
  * @note The caller is responsible for `memcpy`ing the payload into the returned pointer.
  * @warning Aborts on invalid parameters or if the write would exceed buffer capacity.
  */
-LEA_EXPORT(cte_encoder_begin_vector_data)
 void *cte_encoder_begin_vector_data(cte_encoder_t *handle, size_t length)
 {
     if (!handle)

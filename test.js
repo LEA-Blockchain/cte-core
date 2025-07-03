@@ -50,7 +50,7 @@ async function main() {
 
     const importObject = {
         env: {
-            __log_lea: (ptr) => {
+            __lea_log: (ptr) => {
                 if (decoderInstance) {
                     const readString = createStringReader(decoderInstance);
                     console.error(`WASM ABORT: ${readString(ptr)}`);
@@ -70,10 +70,32 @@ JS Callback -> Received Type: ${type}, Size: ${size}`);
                     printHex("  - Received Vector Data", data);
                 } else if (type === 8) { // Vector Index
                     console.log(`  - Received Vector Index: ${dv.getUint8(0)}`);
+                } else if (type === 9) { // Zero
+                    console.log(`  - Received Zero`);
                 } else if (type === 10) { // ULEB128
                     console.log(`  - Received ULEB128: ${dv.getBigUint64(0, true)}`);
                 } else if (type === 11) { // SLEB128
                     console.log(`  - Received SLEB128: ${dv.getBigInt64(0, true)}`);
+                } else if (type === 12) { // Int8
+                    console.log(`  - Received Int8: ${dv.getInt8(0)}`);
+                } else if (type === 13) { // Int16
+                    console.log(`  - Received Int16: ${dv.getInt16(0, true)}`);
+                } else if (type === 14) { // Int32
+                    console.log(`  - Received Int32: ${dv.getInt32(0, true)}`);
+                } else if (type === 15) { // Int64
+                    console.log(`  - Received Int64: ${dv.getBigInt64(0, true)}`);
+                } else if (type === 16) { // UInt8
+                    console.log(`  - Received UInt8: ${dv.getUint8(0)}`);
+                } else if (type === 17) { // UInt16
+                    console.log(`  - Received UInt16: ${dv.getUint16(0, true)}`);
+                } else if (type === 18) { // UInt32
+                    console.log(`  - Received UInt32: ${dv.getUint32(0, true)}`);
+                } else if (type === 19) { // UInt64
+                    console.log(`  - Received UInt64: ${dv.getBigUint64(0, true)}`);
+                } else if (type === 20) { // Float32
+                    console.log(`  - Received Float32: ${dv.getFloat32(0, true)}`);
+                } else if (type === 21) { // Float64
+                    console.log(`  - Received Float64: ${dv.getFloat64(0, true)}`);
                 } else if (type === 22 || type === 23) { // Boolean
                     console.log(`  - Received Boolean: ${dv.getUint8(0) !== 0}`);
                 } else if (type === 24 || type === 25) { // Vector Data
@@ -95,8 +117,8 @@ JS Callback -> Received Type: ${type}, Size: ${size}`);
     console.log('CTE Encoder/Decoder WASM Test\n');
     
     // Reset the allocators before starting
-    encExports.allocator_reset();
-    decExports.allocator_reset();
+    if (encExports.__lea_allocator_reset) encExports.__lea_allocator_reset();
+    if (decExports.__lea_allocator_reset) decExports.__lea_allocator_reset();
 
     // --- 2. Encode Data ---
     console.log('Encoding:');
@@ -106,7 +128,7 @@ JS Callback -> Received Type: ${type}, Size: ${size}`);
     const keySizeCode = 0; // 32-byte keys
     const dummyKeys = new Uint8Array(2 * 32);
     for (let i = 0; i < dummyKeys.length; ++i) dummyKeys[i] = 0xAA + i;
-    const keysPtr = encExports.malloc(dummyKeys.length);
+    const keysPtr = encExports.__lea_malloc(dummyKeys.length);
     new Uint8Array(encExports.memory.buffer).set(dummyKeys, keysPtr);
     encExports.cte_encoder_add_public_key_vector(enc, keyCount, keySizeCode, keysPtr);
     console.log(`  - Public Key Vector (Size Code: ${keySizeCode}, Count: ${keyCount})`);
@@ -118,7 +140,7 @@ JS Callback -> Received Type: ${type}, Size: ${size}`);
     const sigSizeCode = 1; // 64-byte sigs
     const dummySigs = new Uint8Array(1 * 64);
     for (let i = 0; i < dummySigs.length; ++i) dummySigs[i] = 0xBB + i;
-    const sigsPtr = encExports.malloc(dummySigs.length);
+    const sigsPtr = encExports.__lea_malloc(dummySigs.length);
     new Uint8Array(encExports.memory.buffer).set(dummySigs, sigsPtr);
     encExports.cte_encoder_add_signature_vector(enc, sigCount, sigSizeCode, sigsPtr);
     console.log(`  - Signature Vector (Size Code: ${sigSizeCode}, Count: ${sigCount})`);
@@ -137,11 +159,44 @@ JS Callback -> Received Type: ${type}, Size: ${size}`);
     encExports.cte_encoder_write_ixdata_boolean(enc, false);
     console.log('  - IxData Boolean (false)');
 
+    encExports.cte_encoder_write_ixdata_int8(enc, -128);
+    console.log('  - IxData Int8 (-128)');
+    encExports.cte_encoder_write_ixdata_uint8(enc, 255);
+    console.log('  - IxData UInt8 (255)');
+
+    encExports.cte_encoder_write_ixdata_int16(enc, -32768);
+    console.log('  - IxData Int16 (-32768)');
+    encExports.cte_encoder_write_ixdata_uint16(enc, 65535);
+    console.log('  - IxData UInt16 (65535)');
+
+    encExports.cte_encoder_write_ixdata_int32(enc, -2147483648);
+    console.log('  - IxData Int32 (-2147483648)');
+    encExports.cte_encoder_write_ixdata_uint32(enc, 4294967295);
+    console.log('  - IxData UInt32 (4294967295)');
+
+    encExports.cte_encoder_write_ixdata_int64(enc, -9223372036854775808n);
+    console.log('  - IxData Int64 (-9223372036854775808)');
+    encExports.cte_encoder_write_ixdata_uint64(enc, 18446744073709551615n);
+    console.log('  - IxData UInt64 (18446744073709551615)');
+
+    encExports.cte_encoder_write_ixdata_float32(enc, 123.456);
+    console.log('  - IxData Float32 (123.456)');
+    encExports.cte_encoder_write_ixdata_float64(enc, 789.0123456789);
+    console.log('  - IxData Float64 (789.0123456789)');
+
     const shortCmd = new TextEncoder().encode("Short payload");
-    const shortCmdPtr = encExports.malloc(shortCmd.length);
+    const shortCmdPtr = encExports.__lea_malloc(shortCmd.length);
     new Uint8Array(encExports.memory.buffer).set(shortCmd, shortCmdPtr);
     encExports.cte_encoder_add_vector_data(enc, shortCmd.length, shortCmdPtr);
     console.log(`  - Vector Data (Short, Len: ${shortCmd.length})`);
+    
+    const longCmd = new Uint8Array(40);
+    for (let i = 0; i < longCmd.length; i++) longCmd[i] = i;
+    const longCmdPtr = encExports.__lea_malloc(longCmd.length);
+    new Uint8Array(encExports.memory.buffer).set(longCmd, longCmdPtr);
+    encExports.cte_encoder_add_vector_data(enc, longCmd.length, longCmdPtr);
+    console.log(`  - Vector Data (Extended, Len: ${longCmd.length})`);
+
 
     // --- 3. Retrieve Encoded Data & Setup Decoder ---
     const encodedDataPtr = encExports.cte_encoder_get_data(enc);
@@ -178,12 +233,45 @@ JS Callback -> Received Type: ${type}, Size: ${size}`);
         } else if (type === 8) { // Vector Index
             const index = decExports.cte_decoder_read_ixdata_vector_index(dec);
             console.log(`  - Read Vector Index: ${index}`);
+        } else if (type === 9) { // Zero
+            decExports.cte_decoder_read_ixdata_zero(dec);
+            console.log(`  - Read Zero`);
         } else if (type === 10) { // ULEB128
             const val = decExports.cte_decoder_read_ixdata_uleb128(dec);
             console.log(`  - Read ULEB128: ${val}`);
         } else if (type === 11) { // SLEB128
             const val = decExports.cte_decoder_read_ixdata_sleb128(dec);
             console.log(`  - Read SLEB128: ${val}`);
+        } else if (type === 12) { // Int8
+            const val = decExports.cte_decoder_read_ixdata_int8(dec);
+            console.log(`  - Read Int8: ${val}`);
+        } else if (type === 13) { // Int16
+            const val = decExports.cte_decoder_read_ixdata_int16(dec);
+            console.log(`  - Read Int16: ${val}`);
+        } else if (type === 14) { // Int32
+            const val = decExports.cte_decoder_read_ixdata_int32(dec);
+            console.log(`  - Read Int32: ${val}`);
+        } else if (type === 15) { // Int64
+            const val = decExports.cte_decoder_read_ixdata_int64(dec);
+            console.log(`  - Read Int64: ${val}`);
+        } else if (type === 16) { // UInt8
+            const val = decExports.cte_decoder_read_ixdata_uint8(dec);
+            console.log(`  - Read UInt8: ${val}`);
+        } else if (type === 17) { // UInt16
+            const val = decExports.cte_decoder_read_ixdata_uint16(dec);
+            console.log(`  - Read UInt16: ${val}`);
+        } else if (type === 18) { // UInt32
+            const val = decExports.cte_decoder_read_ixdata_uint32(dec);
+            console.log(`  - Read UInt32: ${val}`);
+        } else if (type === 19) { // UInt64
+            const val = decExports.cte_decoder_read_ixdata_uint64(dec);
+            console.log(`  - Read UInt64: ${val}`);
+        } else if (type === 20) { // Float32
+            const val = decExports.cte_decoder_read_ixdata_float32(dec);
+            console.log(`  - Read Float32: ${val}`);
+        } else if (type === 21) { // Float64
+            const val = decExports.cte_decoder_read_ixdata_float64(dec);
+            console.log(`  - Read Float64: ${val}`);
         } else if (type === 22 || type === 23) { // Boolean
             const val = decExports.cte_decoder_read_ixdata_boolean(dec);
             console.log(`  - Read Boolean: ${val}`);
@@ -207,10 +295,10 @@ JS Callback -> Received Type: ${type}, Size: ${size}`);
     console.log(`\nCallback decoding finished with result: ${result}`);
 
     // Basic assertion to verify the test ran
-    if (receivedData.length !== 9) {
-         console.error(`\n[FAIL] Expected 9 data callbacks, but received ${receivedData.length}`);
+    if (receivedData.length !== 20) {
+         console.error(`\n[FAIL] Expected 20 data callbacks, but received ${receivedData.length}`);
     } else {
-         console.log(`\n[PASS] Received 9 data callbacks as expected.`);
+         console.log(`\n[PASS] Received 20 data callbacks as expected.`);
     }
 
     console.log('\n--- Test Complete ---');

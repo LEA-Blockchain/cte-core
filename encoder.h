@@ -189,7 +189,7 @@ void cte_encoder_write_ixdata_boolean(cte_encoder_t *handle, bool value);
  * @warning Aborts on invalid parameters or if the write would exceed buffer capacity.
  */
 void *cte_encoder_begin_vector_data(cte_encoder_t *handle, size_t length);
-void cte_encoder_end_vector_data(cte_encoder_t *handle, size_t length);
+//void cte_encoder_end_vector_data(cte_encoder_t *handle, size_t length);
 
 
 #endif // ENCODER_H
