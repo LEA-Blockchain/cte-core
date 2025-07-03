@@ -1,6 +1,11 @@
 #include "encoder.h"
 #include <stdlea.h>
 
+LEA_EXPORT(test)
+void test()
+{
+    LEA_LOG("This is a test log message from the encoder.");
+}
 /**
  * @brief Checks if adding `needed` bytes would exceed the encoder's capacity.
  * @param encoder A pointer to the encoder context.
@@ -114,6 +119,7 @@ static void write_fixed_data_internal(cte_encoder_t *handle, uint8_t type_code, 
 LEA_EXPORT(cte_encoder_init)
 cte_encoder_t *cte_encoder_init(size_t capacity)
 {
+    LEA_LOG("Initializing CTE encoder with capacity");
     if (capacity < 1)
     {
         lea_abort("Capacity must be at least 1 for the version byte");
@@ -197,71 +203,6 @@ size_t cte_encoder_get_size(const cte_encoder_t *handle)
  * @note The caller is responsible for `memcpy`ing the key data into the returned pointer.
  * @warning Aborts on invalid parameters or if the write would exceed buffer capacity.
  */
-LEA_EXPORT(cte_encoder_begin_public_key_vector)
-void *cte_encoder_begin_public_key_vector(cte_encoder_t *handle, uint8_t key_count, uint8_t size_code)
-{
-    if (!handle)
-    {
-        lea_abort("Null handle in begin_public_key_vector");
-    }
-    if (key_count == 0 || key_count > CTE_VECTOR_MAX_LEN)
-    {
-        lea_abort("Invalid public key vector length (must be 1-15)");
-    }
-    size_t item_size = get_public_key_size(size_code);
-
-    size_t total_data_size = key_count * item_size;
-    size_t total_field_size = 1 + total_data_size;
-
-    CHECK_CAPACITY(handle, total_field_size);
-
-    uint8_t header = CTE_TAG_PUBLIC_KEY_VECTOR | ((key_count & 0x0F) << 2) | (size_code & CTE_VECTOR_ENTRY_SIZE_MASK);
-    handle->buffer[handle->position] = header;
-
-    void *write_ptr = handle->buffer + handle->position + 1;
-    handle->position += total_field_size;
-
-    return write_ptr;
-}
-
-/**
- * @brief Begins a Signature Vector field.
- *
- * Writes the Signature Vector header and reserves space for the signature data.
- *
- * @param handle A pointer to the encoder context.
- * @param sig_count The number of signatures or hashes in the vector (1-15).
- * @param size_code The entry size code for the signatures.
- * @return A writable pointer to the start of the reserved space for signature data.
- * @note The caller is responsible for `memcpy`ing the signature data into the returned pointer.
- * @warning Aborts on invalid parameters or if the write would exceed buffer capacity.
- */
-LEA_EXPORT(cte_encoder_begin_signature_vector)
-void *cte_encoder_begin_signature_vector(cte_encoder_t *handle, uint8_t sig_count, uint8_t size_code)
-{
-    if (!handle)
-    {
-        lea_abort("Null handle in begin_signature_vector");
-    }
-    if (sig_count == 0 || sig_count > CTE_VECTOR_MAX_LEN)
-    {
-        lea_abort("Invalid signature vector length (must be 1-15)");
-    }
-    size_t item_size = get_signature_item_size(size_code);
-
-    size_t total_data_size = sig_count * item_size;
-    size_t total_field_size = 1 + total_data_size;
-
-    CHECK_CAPACITY(handle, total_field_size);
-
-    uint8_t header = CTE_TAG_SIGNATURE_VECTOR | ((sig_count & 0x0F) << 2) | (size_code & CTE_VECTOR_ENTRY_SIZE_MASK);
-    handle->buffer[handle->position] = header;
-
-    void *write_ptr = handle->buffer + handle->position + 1;
-    handle->position += total_field_size;
-
-    return write_ptr;
-}
 
 /**
  * @brief Writes an IxData Vector Index field.
@@ -525,27 +466,57 @@ void *cte_encoder_begin_vector_data(cte_encoder_t *handle, size_t length)
 // --- WASM-specific 'add' wrappers ---
 
 LEA_EXPORT(cte_encoder_add_public_key_vector)
-int cte_encoder_add_public_key_vector(cte_encoder_t *enc, uint8_t key_count, uint8_t size_code, const void *keys) {
-    void* ptr = cte_encoder_begin_public_key_vector(enc, key_count, size_code);
-    if (!ptr) return -1;
-    size_t size = key_count * get_public_key_size(size_code);
-    memcpy(ptr, keys, size);
+int cte_encoder_add_public_key_vector(cte_encoder_t *enc, uint8_t key_count, uint8_t size_code, const void *keys)
+{
+    if (!enc)
+        lea_abort("Null handle in add_public_key_vector");
+    if (key_count == 0 || key_count > CTE_VECTOR_MAX_LEN)
+        lea_abort("Invalid key count");
+
+    size_t item_size = get_public_key_size(size_code);
+    size_t total_data_size = key_count * item_size;
+    size_t total_field_size = 1 + total_data_size;
+
+    if (enc->position + total_field_size > enc->capacity)
+        lea_abort("Capacity error");
+
+    uint8_t header = CTE_TAG_PUBLIC_KEY_VECTOR | ((key_count & 0x0F) << 2) | (size_code & CTE_VECTOR_ENTRY_SIZE_MASK);
+    enc->buffer[enc->position] = header;
+
+    memcpy(enc->buffer + enc->position + 1, keys, total_data_size);
+    enc->position += total_field_size;
     return 0;
 }
 
 LEA_EXPORT(cte_encoder_add_signature_vector)
-int cte_encoder_add_signature_vector(cte_encoder_t *enc, uint8_t sig_count, uint8_t size_code, const void *sigs) {
-    void* ptr = cte_encoder_begin_signature_vector(enc, sig_count, size_code);
-    if (!ptr) return -1;
-    size_t size = sig_count * get_signature_item_size(size_code);
-    memcpy(ptr, sigs, size);
+int cte_encoder_add_signature_vector(cte_encoder_t *enc, uint8_t sig_count, uint8_t size_code, const void *sigs)
+{
+    if (!enc)
+        lea_abort("Null handle in add_signature_vector");
+    if (sig_count == 0 || sig_count > CTE_VECTOR_MAX_LEN)
+        lea_abort("Invalid sig count");
+
+    size_t item_size = get_signature_item_size(size_code);
+    size_t total_data_size = sig_count * item_size;
+    size_t total_field_size = 1 + total_data_size;
+
+    if (enc->position + total_field_size > enc->capacity)
+        lea_abort("Capacity error");
+
+    uint8_t header = CTE_TAG_SIGNATURE_VECTOR | ((sig_count & 0x0F) << 2) | (size_code & CTE_VECTOR_ENTRY_SIZE_MASK);
+    enc->buffer[enc->position] = header;
+
+    memcpy(enc->buffer + enc->position + 1, sigs, total_data_size);
+    enc->position += total_field_size;
     return 0;
 }
 
 LEA_EXPORT(cte_encoder_add_vector_data)
-int cte_encoder_add_vector_data(cte_encoder_t *enc, size_t length, const void *data) {
-    void* ptr = cte_encoder_begin_vector_data(enc, length);
-    if (!ptr) return -1;
+int cte_encoder_add_vector_data(cte_encoder_t *enc, size_t length, const void *data)
+{
+    void *ptr = cte_encoder_begin_vector_data(enc, length);
+    if (!ptr)
+        return -1;
     memcpy(ptr, data, length);
     return 0;
 }

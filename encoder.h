@@ -68,33 +68,7 @@ const uint8_t *cte_encoder_get_data(const cte_encoder_t *handle);
  */
 size_t cte_encoder_get_size(const cte_encoder_t *handle);
 
-/**
- * @brief Begins a Public Key Vector field.
- *
- * Writes the Public Key Vector header and reserves space for the key data.
- *
- * @param handle A pointer to the encoder context.
- * @param key_count The number of public keys in the vector (1-15).
- * @param size_code The entry size code for the keys.
- * @return A writable pointer to the start of the reserved space for key data.
- * @note The caller is responsible for `memcpy`ing the key data into the returned pointer.
- * @warning Aborts on invalid parameters or if the write would exceed buffer capacity.
- */
-void *cte_encoder_begin_public_key_vector(cte_encoder_t *handle, uint8_t key_count, uint8_t size_code);
 
-/**
- * @brief Begins a Signature Vector field.
- *
- * Writes the Signature Vector header and reserves space for the signature data.
- *
- * @param handle A pointer to the encoder context.
- * @param sig_count The number of signatures or hashes in the vector (1-15).
- * @param size_code The entry size code for the signatures.
- * @return A writable pointer to the start of the reserved space for signature data.
- * @note The caller is responsible for `memcpy`ing the signature data into the returned pointer.
- * @warning Aborts on invalid parameters or if the write would exceed buffer capacity.
- */
-void *cte_encoder_begin_signature_vector(cte_encoder_t *handle, uint8_t sig_count, uint8_t size_code);
 
 /**
  * @brief Writes an IxData Vector Index field.
@@ -215,6 +189,7 @@ void cte_encoder_write_ixdata_boolean(cte_encoder_t *handle, bool value);
  * @warning Aborts on invalid parameters or if the write would exceed buffer capacity.
  */
 void *cte_encoder_begin_vector_data(cte_encoder_t *handle, size_t length);
+void cte_encoder_end_vector_data(cte_encoder_t *handle, size_t length);
 
 
 #endif // ENCODER_H

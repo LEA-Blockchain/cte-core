@@ -16,7 +16,7 @@ CFLAGS_NATIVE := -Os -Wall -Wextra -pedantic
 LEA_INCLUDE_PATH := /usr/local/include/stdlea
 LEA_LIB_PATH := /usr/local/lib
 LEA_MVP_LIB := -lstdlea-mvp
-LEA_VM_LIB := -lstdlea-lea
+LEA_VM_LIB := -lstdlea-vm
 LEA_NATIVE_LIB := -lstdlea
 
 # Source files
@@ -35,22 +35,22 @@ wasm_mvp: $(TARGET_MVP_ENC) $(TARGET_MVP_DEC)
 
 $(TARGET_MVP_ENC): $(SRC_CTE) $(SRC_ENC)
 	@echo "Building MVP Encoder: $@"
-	$(CC) $(CFLAGS_WASM_MVP) -I$(LEA_INCLUDE_PATH) -DENV_WASM_MVP $(SRC_CTE) $(SRC_ENC) -L$(LEA_LIB_PATH) $(LEA_MVP_LIB) -flto -o $@
+	$(CC) $(CFLAGS_WASM_MVP) -I$(LEA_INCLUDE_PATH) -DENV_WASM_MVP -DENABLE_LEA_LOG $(SRC_CTE) $(SRC_ENC) -L$(LEA_LIB_PATH) $(LEA_MVP_LIB) -flto -o $@
 
 $(TARGET_MVP_DEC): $(SRC_CTE) $(SRC_DEC)
 	@echo "Building MVP Decoder: $@"
-	$(CC) $(CFLAGS_WASM_MVP) -I$(LEA_INCLUDE_PATH) -DENV_WASM_MVP $(SRC_CTE) $(SRC_DEC) -L$(LEA_LIB_PATH) $(LEA_MVP_LIB) -flto -o $@
+	$(CC) $(CFLAGS_WASM_MVP) -I$(LEA_INCLUDE_PATH) -DENV_WASM_MVP -DENABLE_LEA_LOG $(SRC_CTE) $(SRC_DEC) -L$(LEA_LIB_PATH) $(LEA_MVP_LIB) -flto -o $@
 
 # Lea VM WASM Targets (VM ABI)
 wasm_vm: $(TARGET_VM_ENC) $(TARGET_VM_DEC)
 
 $(TARGET_VM_ENC): $(SRC_CTE) $(SRC_ENC)
 	@echo "Building VM Encoder: $@"
-	$(CC) $(CFLAGS_WASM_LEA) -I$(LEA_INCLUDE_PATH) -DENV_WASM_LEA $(SRC_CTE) $(SRC_ENC) -L$(LEA_LIB_PATH) $(LEA_VM_LIB) -flto -o $@
+	$(CC) $(CFLAGS_WASM_LEA) -I$(LEA_INCLUDE_PATH) -DENV_WASM_LEA -DENABLE_LEA_LOG $(SRC_CTE) $(SRC_ENC) -L$(LEA_LIB_PATH) $(LEA_VM_LIB) -flto -o $@
 
 $(TARGET_VM_DEC): $(SRC_CTE) $(SRC_DEC)
 	@echo "Building VM Decoder: $@"
-	$(CC) $(CFLAGS_WASM_LEA) -I$(LEA_INCLUDE_PATH) -DENV_WASM_LEA $(SRC_CTE) $(SRC_DEC) -L$(LEA_LIB_PATH) $(LEA_VM_LIB) -flto -o $@
+	$(CC) $(CFLAGS_WASM_LEA) -I$(LEA_INCLUDE_PATH) -DENV_WASM_LEA -DENABLE_LEA_LOG $(SRC_CTE) $(SRC_DEC) -L$(LEA_LIB_PATH) $(LEA_VM_LIB) -flto -o $@
 
 # Native Test Target
 native_test: $(TARGET_NATIVE_TEST)

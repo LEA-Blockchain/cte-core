@@ -265,11 +265,12 @@ cte_decoder_t *cte_decoder_init(size_t size)
     {
         lea_abort("Zero size buffer");
     }
+    /*
     if (size > CTE_MAX_TRANSACTION_SIZE)
     {
         lea_abort("Initial buffer size exceeds max transaction size");
     }
-
+    */
     cte_decoder_t *decoder = malloc(sizeof(cte_decoder_t));
     decoder->data = malloc(size);
     decoder->size = size;

@@ -21,7 +21,7 @@
  * @def CTE_MAX_TRANSACTION_SIZE
  * @brief The maximum permissible size in bytes for a single CTE transaction.
  */
-#define CTE_MAX_TRANSACTION_SIZE 1232
+//#define CTE_MAX_TRANSACTION_SIZE 1232
 
 /**
  * @name Field Tag Identifiers
