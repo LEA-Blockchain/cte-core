@@ -138,16 +138,11 @@ cte_encoder_t *cte_encoder_init(size_t capacity)
  * @note This function will abort via `lea_abort` if the handle is NULL.
  */
 LEA_EXPORT(cte_encoder_reset)
-void cte_encoder_reset(cte_encoder_t *handle)
+void cte_encoder_reset(void)
 {
-    if (!handle)
-    {
-        lea_abort("Null handle in reset");
-    }
-    handle->position = 0;
-
-    CHECK_CAPACITY(handle, 1);
-    handle->buffer[handle->position++] = CTE_VERSION_BYTE;
+    // This function performs a hard reset of the entire allocator.
+    // Any existing handles will be invalidated.
+    allocator_reset();
 }
 
 /**

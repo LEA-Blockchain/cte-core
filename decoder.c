@@ -282,13 +282,11 @@ uint8_t *cte_decoder_load(cte_decoder_t *decoder)
 }
 
 LEA_EXPORT(cte_decoder_reset)
-void cte_decoder_reset(cte_decoder_t *decoder)
+void cte_decoder_reset(void)
 {
-    if (!decoder)
-    {
-        lea_abort("Null decoder handle in reset");
-    }
-    decoder->position = 1;
+    // This function performs a hard reset of the entire allocator.
+    // Any existing handles will be invalidated.
+    allocator_reset();
 }
 
 int cte_decoder_peek_type(cte_decoder_t *decoder)

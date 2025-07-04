@@ -48,7 +48,7 @@ cte_encoder_t *cte_encoder_init(size_t capacity);
  * @param handle A pointer to the encoder context to reset.
  * @note This function will abort via `lea_abort` if the handle is NULL.
  */
-void cte_encoder_reset(cte_encoder_t *handle);
+void cte_encoder_reset(void);
 
 /**
  * @brief Gets a read-only pointer to the encoded data.

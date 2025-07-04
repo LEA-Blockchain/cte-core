@@ -68,7 +68,7 @@ uint8_t *cte_decoder_load(cte_decoder_t *decoder);
  * @param decoder A pointer to the decoder context to reset.
  * @note This function will abort via `lea_abort` if the decoder handle is NULL.
  */
-void cte_decoder_reset(cte_decoder_t *decoder);
+void cte_decoder_reset(void);
 
 /**
  * @brief Peeks at the next field to get its unique type identifier.
