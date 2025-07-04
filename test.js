@@ -178,6 +178,9 @@ JS Callback -> Received Type: ${type}, Size: ${size}`);
     encExports.cte_encoder_write_ixdata_sleb128(enc, -78910n);
     console.log('  - IxData SLEB128 (-78910)');
 
+    encExports.cte_encoder_write_ixdata_uleb128(enc, 1234567890n);
+    console.log('  - IxData ULEB128 (1234567890)');
+
     encExports.cte_encoder_write_ixdata_boolean(enc, true);
     console.log('  - IxData Boolean (true)');
     encExports.cte_encoder_write_ixdata_boolean(enc, false);
@@ -240,10 +243,48 @@ JS Callback -> Received Type: ${type}, Size: ${size}`);
     console.log(`\nCallback decoding finished with result: ${result}`);
 
     // Basic assertion to verify the test ran
-    if (receivedData.length !== 19) {
-         console.error(`\n[FAIL] Expected 19 data callbacks, but received ${receivedData.length}`);
+    if (receivedData.length !== 20) {
+         console.error(`\n[FAIL] Expected 20 data callbacks, but received ${receivedData.length}`);
     } else {
-         console.log(`\n[PASS] Received 19 data callbacks as expected.`);
+         console.log(`\n[PASS] Received 20 data callbacks as expected.`);
+    }
+
+    // --- 5. Test Encoder Reset ---
+    console.log('\n--- Testing Encoder Reset ---');
+    encExports.cte_encoder_reset(enc);
+    console.log('Encoding after reset:');
+    encExports.cte_encoder_write_ixdata_uint32(enc, 987654321);
+    console.log('  - IxData UInt32 (987654321)');
+    const encodedDataSize2 = encExports.cte_encoder_get_size(enc);
+    if (encodedDataSize2 > 10) { // Expecting F1 + header + 4 bytes = 6
+        console.error(`\n[FAIL] Encoder reset did not clear previous data. Size: ${encodedDataSize2}`);
+    } else {
+        console.log(`\n[PASS] Encoder reset appears to have worked. New size: ${encodedDataSize2}`);
+    }
+
+    // --- 6. Test Decoder Reset ---
+    console.log('\n--- Testing Decoder Reset ---');
+    
+    // The decoder's position is currently at the end from the first main run.
+    // We must reset it before we can decode again.
+    console.log('Resetting decoder to run on the same data for the first time...');
+    decExports.cte_decoder_reset(dec);
+    receivedData.length = 0; // Clear received data array
+
+    const result_run1 = decExports.cte_decoder_run(dec);
+    console.log(`First run finished with result: ${result_run1}. Received ${receivedData.length} items.`);
+
+    console.log('\nResetting decoder and running again on the same data...');
+    decExports.cte_decoder_reset(dec);
+    const result_run2 = decExports.cte_decoder_run(dec);
+    console.log(`Second run finished with result: ${result_run2}. Received ${receivedData.length} items in total.`);
+
+    if (result_run1 !== 0 || result_run2 !== 0) {
+        console.error(`\n[FAIL] One of the decoder runs failed.`);
+    } else if (receivedData.length !== 40) { // 20 items from first run + 20 from second
+        console.error(`\n[FAIL] Expected 40 total items after two runs, but got ${receivedData.length}.`);
+    } else {
+        console.log(`\n[PASS] Decoder reset successful. Correct number of items received on both runs.`);
     }
 
     console.log('\n--- Test Complete ---');

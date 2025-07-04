@@ -291,7 +291,6 @@ void cte_decoder_reset(cte_decoder_t *decoder)
     decoder->position = 1;
 }
 
-LEA_EXPORT(cte_decoder_peek_type)
 int cte_decoder_peek_type(cte_decoder_t *decoder)
 {
     if (decoder->position == 0)
