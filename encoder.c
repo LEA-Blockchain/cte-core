@@ -453,8 +453,20 @@ static void *cte_encoder_begin_vector_data(cte_encoder_t *handle, size_t length)
     return write_ptr;
 }
 
-// --- WASM-specific 'add' wrappers ---
-
+/**
+ * @brief Adds a complete Public Key Vector field to the encoder buffer.
+ *
+ * This function constructs and writes a Public Key Vector field, including its
+ * header and the provided key data.
+ *
+ * @param enc A pointer to the encoder context.
+ * @param key_count The number of public keys in the vector (1-15).
+ * @param size_code The entry size code for the keys.
+ * @param keys A pointer to the buffer containing the key data to be written.
+ * @return Returns 0 on success.
+ * @warning This function will abort via `lea_abort` on null pointers, invalid
+ *          key counts, or if the write would exceed buffer capacity.
+ */
 LEA_EXPORT(cte_encoder_add_public_key_vector)
 int cte_encoder_add_public_key_vector(cte_encoder_t *enc, uint8_t key_count, uint8_t size_code, const void *keys)
 {
@@ -478,6 +490,20 @@ int cte_encoder_add_public_key_vector(cte_encoder_t *enc, uint8_t key_count, uin
     return 0;
 }
 
+/**
+ * @brief Adds a complete Signature Vector field to the encoder buffer.
+ *
+ * This function constructs and writes a Signature Vector field, including its
+ * header and the provided signature data.
+ *
+ * @param enc A pointer to the encoder context.
+ * @param sig_count The number of signatures in the vector (1-15).
+ * @param size_code The entry size code for the signatures.
+ * @param sigs A pointer to the buffer containing the signature data to be written.
+ * @return Returns 0 on success.
+ * @warning This function will abort via `lea_abort` on null pointers, invalid
+ *          signature counts, or if the write would exceed buffer capacity.
+ */
 LEA_EXPORT(cte_encoder_add_signature_vector)
 int cte_encoder_add_signature_vector(cte_encoder_t *enc, uint8_t sig_count, uint8_t size_code, const void *sigs)
 {
@@ -501,6 +527,17 @@ int cte_encoder_add_signature_vector(cte_encoder_t *enc, uint8_t sig_count, uint
     return 0;
 }
 
+/**
+ * @brief Adds a complete Vector Data field to the encoder buffer.
+ *
+ * This function uses `cte_encoder_begin_vector_data` to handle the header
+ * and then copies the provided data into the buffer.
+ *
+ * @param enc A pointer to the encoder context.
+ * @param length The length of the data to write.
+ * @param data A pointer to the data buffer.
+ * @return Returns 0 on success, -1 on failure (if `begin_vector_data` fails).
+ */
 LEA_EXPORT(cte_encoder_add_vector_data)
 int cte_encoder_add_vector_data(cte_encoder_t *enc, size_t length, const void *data)
 {

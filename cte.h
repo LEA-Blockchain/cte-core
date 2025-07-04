@@ -47,14 +47,14 @@
  * @brief Defines the byte sizes for vector entries based on the size code (LIP-0005).
  * @{
  */
-#define CTE_PUBKEY_SIZE_CODE_0 32
-#define CTE_PUBKEY_SIZE_CODE_1 64
-#define CTE_PUBKEY_SIZE_CODE_2 128
+#define CTE_PUBKEY_SIZE_FOR_CODE_0 32
+#define CTE_PUBKEY_SIZE_FOR_CODE_1 64
+#define CTE_PUBKEY_SIZE_FOR_CODE_2 128
 
-#define CTE_SIGNATURE_SIZE_CODE_0 32
-#define CTE_SIGNATURE_SIZE_CODE_1 64
-#define CTE_SIGNATURE_SIZE_CODE_2 128
-#define CTE_SIGNATURE_SIZE_CODE_3 29792
+#define CTE_SIGNATURE_SIZE_FOR_CODE_0 32
+#define CTE_SIGNATURE_SIZE_FOR_CODE_1 64
+#define CTE_SIGNATURE_SIZE_FOR_CODE_2 128
+#define CTE_SIGNATURE_SIZE_FOR_CODE_3 29792
 /** @} */
 
 /**
@@ -99,25 +99,24 @@
 
 // Tag 10: IxData Fields
 #define CTE_PEEK_TYPE_IXDATA_VECTOR_INDEX 8
-#define CTE_PEEK_TYPE_IXDATA_VARINT_ZERO 9
-#define CTE_PEEK_TYPE_IXDATA_ULEB128 10
-#define CTE_PEEK_TYPE_IXDATA_SLEB128 11
-#define CTE_PEEK_TYPE_IXDATA_INT8 12
-#define CTE_PEEK_TYPE_IXDATA_INT16 13
-#define CTE_PEEK_TYPE_IXDATA_INT32 14
-#define CTE_PEEK_TYPE_IXDATA_INT64 15
-#define CTE_PEEK_TYPE_IXDATA_UINT8 16
-#define CTE_PEEK_TYPE_IXDATA_UINT16 17
-#define CTE_PEEK_TYPE_IXDATA_UINT32 18
-#define CTE_PEEK_TYPE_IXDATA_UINT64 19
-#define CTE_PEEK_TYPE_IXDATA_FLOAT32 20
-#define CTE_PEEK_TYPE_IXDATA_FLOAT64 21
-#define CTE_PEEK_TYPE_IXDATA_CONST_FALSE 22
-#define CTE_PEEK_TYPE_IXDATA_CONST_TRUE 23
+#define CTE_PEEK_TYPE_IXDATA_ULEB128 9
+#define CTE_PEEK_TYPE_IXDATA_SLEB128 10
+#define CTE_PEEK_TYPE_IXDATA_INT8 11
+#define CTE_PEEK_TYPE_IXDATA_INT16 12
+#define CTE_PEEK_TYPE_IXDATA_INT32 13
+#define CTE_PEEK_TYPE_IXDATA_INT64 14
+#define CTE_PEEK_TYPE_IXDATA_UINT8 15
+#define CTE_PEEK_TYPE_IXDATA_UINT16 16
+#define CTE_PEEK_TYPE_IXDATA_UINT32 17
+#define CTE_PEEK_TYPE_IXDATA_UINT64 18
+#define CTE_PEEK_TYPE_IXDATA_FLOAT32 19
+#define CTE_PEEK_TYPE_IXDATA_FLOAT64 20
+#define CTE_PEEK_TYPE_IXDATA_CONST_FALSE 21
+#define CTE_PEEK_TYPE_IXDATA_CONST_TRUE 22
 
 // Tag 11: Vector Data
-#define CTE_PEEK_TYPE_VECTOR_SHORT 24
-#define CTE_PEEK_TYPE_VECTOR_EXTENDED 25
+#define CTE_PEEK_TYPE_VECTOR_SHORT 23
+#define CTE_PEEK_TYPE_VECTOR_EXTENDED 24
 /** @} */
 
 /**
@@ -125,7 +124,6 @@
  * @brief Encoding scheme codes for the Varint sub-type (SS=01), stored in bits 5-2 (LIP-0001).
  * @{
  */
-#define CTE_IXDATA_VARINT_ENC_ZERO 0x00
 #define CTE_IXDATA_VARINT_ENC_ULEB128 0x01
 #define CTE_IXDATA_VARINT_ENC_SLEB128 0x02
 /** @} */
@@ -188,7 +186,20 @@
  * @return The size of the public key in bytes.
  * @note This function will abort via `lea_abort` if an invalid size code is provided.
  */
-size_t get_public_key_size(uint8_t size_code);
+static inline size_t get_public_key_size(uint8_t size_code)
+{
+    switch (size_code)
+    {
+    case CTE_VECTOR_ENTRY_SIZE_CODE_0:
+        return CTE_PUBKEY_SIZE_FOR_CODE_0;
+    case CTE_VECTOR_ENTRY_SIZE_CODE_1:
+        return CTE_PUBKEY_SIZE_FOR_CODE_1;
+    case CTE_VECTOR_ENTRY_SIZE_CODE_2:
+        return CTE_PUBKEY_SIZE_FOR_CODE_2;
+    default:
+        lea_abort("Invalid public key size code");
+    }
+}
 
 /**
  * @brief Gets the size in bytes of a signature vector item for a given entry size code.
@@ -196,7 +207,22 @@ size_t get_public_key_size(uint8_t size_code);
  * @return The size of the signature item in bytes.
  * @note This function will abort via `lea_abort` if an invalid size code is provided.
  */
-size_t get_signature_item_size(uint8_t size_code);
+static inline size_t get_signature_item_size(uint8_t size_code)
+{
+    switch (size_code)
+    {
+    case CTE_VECTOR_ENTRY_SIZE_CODE_0:
+        return CTE_SIGNATURE_SIZE_FOR_CODE_0;
+    case CTE_VECTOR_ENTRY_SIZE_CODE_1:
+        return CTE_SIGNATURE_SIZE_FOR_CODE_1;
+    case CTE_VECTOR_ENTRY_SIZE_CODE_2:
+        return CTE_SIGNATURE_SIZE_FOR_CODE_2;
+    case CTE_VECTOR_ENTRY_SIZE_CODE_3:
+        return CTE_SIGNATURE_SIZE_FOR_CODE_3;
+    default:
+        lea_abort("Invalid signature size code");
+    }
+}
 
 #endif // CTE_H
 

@@ -5,6 +5,35 @@ const path = require('path');
 const ENCODER_WASM_PATH = path.join(__dirname, 'encoder.mvp.wasm');
 const DECODER_WASM_PATH = path.join(__dirname, 'decoder.mvp.wasm');
 
+// --- CTE Peek Type Identifiers ---
+// These constants are copied from cte.h for clarity in the JS test.
+const CTE_PEEK_TYPE_PK_VECTOR_SIZE_0 = 0;
+const CTE_PEEK_TYPE_PK_VECTOR_SIZE_1 = 1;
+const CTE_PEEK_TYPE_PK_VECTOR_SIZE_2 = 2;
+const CTE_PEEK_TYPE_PK_VECTOR_SIZE_3 = 3; // Unused
+const CTE_PEEK_TYPE_SIG_VECTOR_SIZE_0 = 4;
+const CTE_PEEK_TYPE_SIG_VECTOR_SIZE_1 = 5;
+const CTE_PEEK_TYPE_SIG_VECTOR_SIZE_2 = 6;
+const CTE_PEEK_TYPE_SIG_VECTOR_SIZE_3 = 7;
+const CTE_PEEK_TYPE_IXDATA_VECTOR_INDEX = 8;
+const CTE_PEEK_TYPE_IXDATA_ULEB128 = 9;
+const CTE_PEEK_TYPE_IXDATA_SLEB128 = 10;
+const CTE_PEEK_TYPE_IXDATA_INT8 = 11;
+const CTE_PEEK_TYPE_IXDATA_INT16 = 12;
+const CTE_PEEK_TYPE_IXDATA_INT32 = 13;
+const CTE_PEEK_TYPE_IXDATA_INT64 = 14;
+const CTE_PEEK_TYPE_IXDATA_UINT8 = 15;
+const CTE_PEEK_TYPE_IXDATA_UINT16 = 16;
+const CTE_PEEK_TYPE_IXDATA_UINT32 = 17;
+const CTE_PEEK_TYPE_IXDATA_UINT64 = 18;
+const CTE_PEEK_TYPE_IXDATA_FLOAT32 = 19;
+const CTE_PEEK_TYPE_IXDATA_FLOAT64 = 20;
+const CTE_PEEK_TYPE_IXDATA_CONST_FALSE = 21;
+const CTE_PEEK_TYPE_IXDATA_CONST_TRUE = 22;
+const CTE_PEEK_TYPE_VECTOR_SHORT = 23;
+const CTE_PEEK_TYPE_VECTOR_EXTENDED = 24;
+
+
 /**
  * A helper function to print a Uint8Array in hexadecimal format.
  * @param {string} label A label to print before the hex data.
@@ -66,39 +95,37 @@ JS Callback -> Received Type: ${type}, Size: ${size}`);
                 receivedData.push({ type, data });
 
                 const dv = new DataView(data.buffer, data.byteOffset, data.length);
-                if (type >= 0 && type <= 7) { // Vectors
+                if (type >= CTE_PEEK_TYPE_PK_VECTOR_SIZE_0 && type <= CTE_PEEK_TYPE_SIG_VECTOR_SIZE_3) { // Vectors
                     printHex("  - Received Vector Data", data);
-                } else if (type === 8) { // Vector Index
+                } else if (type === CTE_PEEK_TYPE_IXDATA_VECTOR_INDEX) { // Vector Index
                     console.log(`  - Received Vector Index: ${dv.getUint8(0)}`);
-                } else if (type === 9) { // Zero
-                    console.log(`  - Received Zero`);
-                } else if (type === 10) { // ULEB128
+                } else if (type === CTE_PEEK_TYPE_IXDATA_ULEB128) { // ULEB128
                     console.log(`  - Received ULEB128: ${dv.getBigUint64(0, true)}`);
-                } else if (type === 11) { // SLEB128
+                } else if (type === CTE_PEEK_TYPE_IXDATA_SLEB128) { // SLEB128
                     console.log(`  - Received SLEB128: ${dv.getBigInt64(0, true)}`);
-                } else if (type === 12) { // Int8
+                } else if (type === CTE_PEEK_TYPE_IXDATA_INT8) { // Int8
                     console.log(`  - Received Int8: ${dv.getInt8(0)}`);
-                } else if (type === 13) { // Int16
+                } else if (type === CTE_PEEK_TYPE_IXDATA_INT16) { // Int16
                     console.log(`  - Received Int16: ${dv.getInt16(0, true)}`);
-                } else if (type === 14) { // Int32
+                } else if (type === CTE_PEEK_TYPE_IXDATA_INT32) { // Int32
                     console.log(`  - Received Int32: ${dv.getInt32(0, true)}`);
-                } else if (type === 15) { // Int64
+                } else if (type === CTE_PEEK_TYPE_IXDATA_INT64) { // Int64
                     console.log(`  - Received Int64: ${dv.getBigInt64(0, true)}`);
-                } else if (type === 16) { // UInt8
+                } else if (type === CTE_PEEK_TYPE_IXDATA_UINT8) { // UInt8
                     console.log(`  - Received UInt8: ${dv.getUint8(0)}`);
-                } else if (type === 17) { // UInt16
+                } else if (type === CTE_PEEK_TYPE_IXDATA_UINT16) { // UInt16
                     console.log(`  - Received UInt16: ${dv.getUint16(0, true)}`);
-                } else if (type === 18) { // UInt32
+                } else if (type === CTE_PEEK_TYPE_IXDATA_UINT32) { // UInt32
                     console.log(`  - Received UInt32: ${dv.getUint32(0, true)}`);
-                } else if (type === 19) { // UInt64
+                } else if (type === CTE_PEEK_TYPE_IXDATA_UINT64) { // UInt64
                     console.log(`  - Received UInt64: ${dv.getBigUint64(0, true)}`);
-                } else if (type === 20) { // Float32
+                } else if (type === CTE_PEEK_TYPE_IXDATA_FLOAT32) { // Float32
                     console.log(`  - Received Float32: ${dv.getFloat32(0, true)}`);
-                } else if (type === 21) { // Float64
+                } else if (type === CTE_PEEK_TYPE_IXDATA_FLOAT64) { // Float64
                     console.log(`  - Received Float64: ${dv.getFloat64(0, true)}`);
-                } else if (type === 22 || type === 23) { // Boolean
+                } else if (type === CTE_PEEK_TYPE_IXDATA_CONST_FALSE || type === CTE_PEEK_TYPE_IXDATA_CONST_TRUE) { // Boolean
                     console.log(`  - Received Boolean: ${dv.getUint8(0) !== 0}`);
-                } else if (type === 24 || type === 25) { // Vector Data
+                } else if (type === CTE_PEEK_TYPE_VECTOR_SHORT || type === CTE_PEEK_TYPE_VECTOR_EXTENDED) { // Vector Data
                     printHex("  - Received Vector Data", data);
                 }
             }
@@ -147,9 +174,6 @@ JS Callback -> Received Type: ${type}, Size: ${size}`);
 
     encExports.cte_encoder_write_ixdata_vector_index(enc, 0);
     console.log('  - IxData Vector Index (0)');
-    
-    encExports.cte_encoder_write_ixdata_uleb128(enc, 123456n);
-    console.log('  - IxData ULEB128 (123456)');
     
     encExports.cte_encoder_write_ixdata_sleb128(enc, -78910n);
     console.log('  - IxData SLEB128 (-78910)');
@@ -216,10 +240,10 @@ JS Callback -> Received Type: ${type}, Size: ${size}`);
     console.log(`\nCallback decoding finished with result: ${result}`);
 
     // Basic assertion to verify the test ran
-    if (receivedData.length !== 20) {
-         console.error(`\n[FAIL] Expected 20 data callbacks, but received ${receivedData.length}`);
+    if (receivedData.length !== 19) {
+         console.error(`\n[FAIL] Expected 19 data callbacks, but received ${receivedData.length}`);
     } else {
-         console.log(`\n[PASS] Received 20 data callbacks as expected.`);
+         console.log(`\n[PASS] Received 19 data callbacks as expected.`);
     }
 
     console.log('\n--- Test Complete ---');

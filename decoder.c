@@ -265,12 +265,6 @@ cte_decoder_t *cte_decoder_init(size_t size)
     {
         lea_abort("Zero size buffer");
     }
-    /*
-    if (size > CTE_MAX_TRANSACTION_SIZE)
-    {
-        lea_abort("Initial buffer size exceeds max transaction size");
-    }
-    */
     cte_decoder_t *decoder = malloc(sizeof(cte_decoder_t));
     decoder->data = malloc(size);
     decoder->size = size;
@@ -343,8 +337,6 @@ int cte_decoder_peek_type(cte_decoder_t *decoder)
         case CTE_IXDATA_SUBTYPE_VARINT:
             switch (detail_code)
             {
-            case CTE_IXDATA_VARINT_ENC_ZERO:
-                return CTE_PEEK_TYPE_IXDATA_VARINT_ZERO;
             case CTE_IXDATA_VARINT_ENC_ULEB128:
                 return CTE_PEEK_TYPE_IXDATA_ULEB128;
             case CTE_IXDATA_VARINT_ENC_SLEB128:
@@ -395,7 +387,17 @@ int cte_decoder_peek_type(cte_decoder_t *decoder)
     return -1; // Should not happen with valid CTE
 }
 
-
+/**
+ * @brief Reads the data payload of a Public Key Vector.
+ *
+ * Consumes the header, validates it, calculates the total data size,
+ * and returns a pointer to the start of the key data. The decoder's
+ * position is advanced past the entire field.
+ *
+ * @param decoder A pointer to the decoder context.
+ * @return A const pointer to the start of the vector's data payload.
+ * @note Internal helper function. Aborts on error.
+ */
 static const uint8_t *_cte_decoder_read_public_key_vector_data(cte_decoder_t *decoder)
 {
     if (!decoder)
@@ -430,7 +432,17 @@ static const uint8_t *_cte_decoder_read_public_key_vector_data(cte_decoder_t *de
 }
 
 
-
+/**
+ * @brief Reads the data payload of a Signature Vector.
+ *
+ * Consumes the header, validates it, calculates the total data size,
+ * and returns a pointer to the start of the signature data. The decoder's
+ * position is advanced past the entire field.
+ *
+ * @param decoder A pointer to the decoder context.
+ * @return A const pointer to the start of the vector's data payload.
+ * @note Internal helper function. Aborts on error.
+ */
 static const uint8_t *_cte_decoder_read_signature_vector_data(cte_decoder_t *decoder)
 {
     if (!decoder)
@@ -465,7 +477,12 @@ static const uint8_t *_cte_decoder_read_signature_vector_data(cte_decoder_t *dec
 }
 
 
-
+/**
+ * @brief Reads and returns a 4-bit IxData Vector Index.
+ * @param decoder A pointer to the decoder context.
+ * @return The decoded 4-bit index value.
+ * @note Internal helper function. Aborts on error.
+ */
 static uint8_t _cte_decoder_read_ixdata_vector_index(cte_decoder_t *decoder)
 {
     if (!decoder)
@@ -480,7 +497,12 @@ static uint8_t _cte_decoder_read_ixdata_vector_index(cte_decoder_t *decoder)
 }
 
 
-
+/**
+ * @brief Reads and returns a ULEB128-encoded value from an IxData field.
+ * @param decoder A pointer to the decoder context.
+ * @return The decoded `uint64_t` value.
+ * @note Internal helper function. Aborts on error.
+ */
 static uint64_t _cte_decoder_read_ixdata_uleb128(cte_decoder_t *decoder)
 {
     if (!decoder)
@@ -505,7 +527,12 @@ static uint64_t _cte_decoder_read_ixdata_uleb128(cte_decoder_t *decoder)
 }
 
 
-
+/**
+ * @brief Reads and returns an SLEB128-encoded value from an IxData field.
+ * @param decoder A pointer to the decoder context.
+ * @return The decoded `int64_t` value.
+ * @note Internal helper function. Aborts on error.
+ */
 static int64_t _cte_decoder_read_ixdata_sleb128(cte_decoder_t *decoder)
 {
     if (!decoder)
@@ -530,7 +557,11 @@ static int64_t _cte_decoder_read_ixdata_sleb128(cte_decoder_t *decoder)
 }
 
 
-
+/**
+ * @brief Reads a fixed-size `int8_t` from an IxData field.
+ * @param decoder A pointer to the decoder context.
+ * @return The decoded `int8_t` value.
+ */
 static int8_t _cte_decoder_read_ixdata_int8(cte_decoder_t *decoder)
 {
     int8_t value;
@@ -538,6 +569,11 @@ static int8_t _cte_decoder_read_ixdata_int8(cte_decoder_t *decoder)
     return value;
 }
 
+/**
+ * @brief Reads a fixed-size `int16_t` from an IxData field.
+ * @param decoder A pointer to the decoder context.
+ * @return The decoded `int16_t` value.
+ */
 static int16_t _cte_decoder_read_ixdata_int16(cte_decoder_t *decoder)
 {
     int16_t value;
@@ -545,6 +581,11 @@ static int16_t _cte_decoder_read_ixdata_int16(cte_decoder_t *decoder)
     return value;
 }
 
+/**
+ * @brief Reads a fixed-size `int32_t` from an IxData field.
+ * @param decoder A pointer to the decoder context.
+ * @return The decoded `int32_t` value.
+ */
 static int32_t _cte_decoder_read_ixdata_int32(cte_decoder_t *decoder)
 {
     int32_t value;
@@ -552,6 +593,11 @@ static int32_t _cte_decoder_read_ixdata_int32(cte_decoder_t *decoder)
     return value;
 }
 
+/**
+ * @brief Reads a fixed-size `int64_t` from an IxData field.
+ * @param decoder A pointer to the decoder context.
+ * @return The decoded `int64_t` value.
+ */
 static int64_t _cte_decoder_read_ixdata_int64(cte_decoder_t *decoder)
 {
     int64_t value;
@@ -559,6 +605,11 @@ static int64_t _cte_decoder_read_ixdata_int64(cte_decoder_t *decoder)
     return value;
 }
 
+/**
+ * @brief Reads a fixed-size `uint8_t` from an IxData field.
+ * @param decoder A pointer to the decoder context.
+ * @return The decoded `uint8_t` value.
+ */
 static uint8_t _cte_decoder_read_ixdata_uint8(cte_decoder_t *decoder)
 {
     uint8_t value;
@@ -566,6 +617,11 @@ static uint8_t _cte_decoder_read_ixdata_uint8(cte_decoder_t *decoder)
     return value;
 }
 
+/**
+ * @brief Reads a fixed-size `uint16_t` from an IxData field.
+ * @param decoder A pointer to the decoder context.
+ * @return The decoded `uint16_t` value.
+ */
 static uint16_t _cte_decoder_read_ixdata_uint16(cte_decoder_t *decoder)
 {
     uint16_t value;
@@ -573,6 +629,11 @@ static uint16_t _cte_decoder_read_ixdata_uint16(cte_decoder_t *decoder)
     return value;
 }
 
+/**
+ * @brief Reads a fixed-size `uint32_t` from an IxData field.
+ * @param decoder A pointer to the decoder context.
+ * @return The decoded `uint32_t` value.
+ */
 static uint32_t _cte_decoder_read_ixdata_uint32(cte_decoder_t *decoder)
 {
     uint32_t value;
@@ -580,6 +641,11 @@ static uint32_t _cte_decoder_read_ixdata_uint32(cte_decoder_t *decoder)
     return value;
 }
 
+/**
+ * @brief Reads a fixed-size `uint64_t` from an IxData field.
+ * @param decoder A pointer to the decoder context.
+ * @return The decoded `uint64_t` value.
+ */
 static uint64_t _cte_decoder_read_ixdata_uint64(cte_decoder_t *decoder)
 {
     uint64_t value;
@@ -587,6 +653,11 @@ static uint64_t _cte_decoder_read_ixdata_uint64(cte_decoder_t *decoder)
     return value;
 }
 
+/**
+ * @brief Reads a fixed-size `float` from an IxData field.
+ * @param decoder A pointer to the decoder context.
+ * @return The decoded `float` value.
+ */
 static float _cte_decoder_read_ixdata_float32(cte_decoder_t *decoder)
 {
     float value;
@@ -594,6 +665,11 @@ static float _cte_decoder_read_ixdata_float32(cte_decoder_t *decoder)
     return value;
 }
 
+/**
+ * @brief Reads a fixed-size `double` from an IxData field.
+ * @param decoder A pointer to the decoder context.
+ * @return The decoded `double` value.
+ */
 static double _cte_decoder_read_ixdata_float64(cte_decoder_t *decoder)
 {
     double value;
@@ -601,6 +677,12 @@ static double _cte_decoder_read_ixdata_float64(cte_decoder_t *decoder)
     return value;
 }
 
+/**
+ * @brief Reads and returns a boolean constant from an IxData field.
+ * @param decoder A pointer to the decoder context.
+ * @return The decoded `bool` value.
+ * @note Internal helper function. Aborts on error.
+ */
 static bool _cte_decoder_read_ixdata_boolean(cte_decoder_t *decoder)
 {
     if (!decoder)
@@ -625,6 +707,16 @@ static bool _cte_decoder_read_ixdata_boolean(cte_decoder_t *decoder)
     }
 }
 
+/**
+ * @brief Reads the payload of a generic Vector Data field.
+ *
+ * Parses the header to determine the length, advances the decoder's position
+ * past the header, and returns a pointer to the start of the payload.
+ *
+ * @param decoder A pointer to the decoder context.
+ * @return A const pointer to the start of the payload data.
+ * @note Internal helper function. Aborts on error.
+ */
 static const uint8_t *_cte_decoder_read_vector_data_payload(cte_decoder_t *decoder)
 {
     if (!decoder)
@@ -651,23 +743,6 @@ static const uint8_t *_cte_decoder_read_vector_data_payload(cte_decoder_t *decod
     return payload_ptr;
 }
 
-static void _cte_decoder_read_ixdata_varint_zero(cte_decoder_t *decoder)
-{
-    if (!decoder)
-    {
-        lea_abort("Null decoder handle in read_ixdata_varint_zero");
-    }
-    uint8_t header = _consume_ixdata_header(decoder, CTE_IXDATA_SUBTYPE_VARINT);
-    uint8_t EEEE = (header >> 2) & 0x0F;
-
-    if (EEEE != CTE_IXDATA_VARINT_ENC_ZERO)
-    {
-        lea_abort("Expected Varint encoding scheme 0 (ZERO)");
-    }
-}
-
-
-LEA_EXPORT(cte_decoder_get_last_vector_count)
 size_t cte_decoder_get_last_vector_count(const cte_decoder_t *decoder)
 {
     if (!decoder)
@@ -677,7 +752,6 @@ size_t cte_decoder_get_last_vector_count(const cte_decoder_t *decoder)
     return decoder->last_vector_count;
 }
 
-LEA_EXPORT(cte_decoder_get_last_vector_data_payload_length)
 size_t cte_decoder_get_last_vector_data_payload_length(const cte_decoder_t *decoder)
 {
     if (!decoder)
@@ -734,13 +808,6 @@ int cte_decoder_run(cte_decoder_t *decoder)
         case CTE_PEEK_TYPE_IXDATA_VECTOR_INDEX:
         {
             uint8_t val = _cte_decoder_read_ixdata_vector_index(decoder);
-            __cte_data_handler(type, &val, sizeof(val));
-            break;
-        }
-        case CTE_PEEK_TYPE_IXDATA_VARINT_ZERO:
-        {
-            _cte_decoder_read_ixdata_varint_zero(decoder);
-            uint64_t val = 0;
             __cte_data_handler(type, &val, sizeof(val));
             break;
         }

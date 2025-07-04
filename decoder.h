@@ -102,18 +102,6 @@ size_t cte_decoder_get_last_vector_count(const cte_decoder_t *decoder);
  */
 size_t cte_decoder_get_last_vector_data_payload_length(const cte_decoder_t *decoder);
 
-
-
-
-
-
-
-
-
-
-
-
-
 /**
  * @brief Decodes a full CTE stream using a callback mechanism.
  *
