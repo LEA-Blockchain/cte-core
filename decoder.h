@@ -18,11 +18,6 @@
  */
 #define CTE_PEEK_EOF ((uint8_t)0xFF)
 
-// --- Tag 11: Vector Data ---
-#define CTE_PEEK_SUBTYPE_VECTOR_SHORT 0x50    ///< Vector Data with a short payload (0-31 bytes).
-#define CTE_PEEK_SUBTYPE_VECTOR_EXTENDED 0x51 ///< Vector Data with an extended payload (32-1197 bytes).
-/** @} */
-
 /**
  * @struct cte_decoder
  * @brief Manages the state of the CTE decoding process.
@@ -92,16 +87,6 @@ void cte_decoder_reset(cte_decoder_t *decoder);
  * @note This function will abort via `lea_abort` if the version byte is incorrect.
  */
 int cte_decoder_peek_type(cte_decoder_t *decoder);
-
-/**
- * @brief Reads and consumes an IxData Varint Zero field.
- *
- * This function simply consumes the header byte for a Varint field that
- * encodes the value 0.
- *
- * @param decoder A pointer to the decoder context.
- */
-void cte_decoder_read_ixdata_varint_zero(cte_decoder_t *decoder);
 
 /**
  * @brief Gets the number of items from the most recently read vector.

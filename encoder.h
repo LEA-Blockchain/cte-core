@@ -176,20 +176,5 @@ void cte_encoder_write_ixdata_float64(cte_encoder_t *handle, double value);
  */
 void cte_encoder_write_ixdata_boolean(cte_encoder_t *handle, bool value);
 
-/**
- * @brief Begins a generic Vector Data field.
- *
- * Writes the Vector Data header, automatically selecting the short or extended
- * format based on the length. Reserves space for the payload.
- *
- * @param handle A pointer to the encoder context.
- * @param length The exact length of the vector data payload (0-1197).
- * @return A writable pointer to the start of the reserved space for the payload.
- * @note The caller is responsible for `memcpy`ing the payload into the returned pointer.
- * @warning Aborts on invalid parameters or if the write would exceed buffer capacity.
- */
-void *cte_encoder_begin_vector_data(cte_encoder_t *handle, size_t length);
-//void cte_encoder_end_vector_data(cte_encoder_t *handle, size_t length);
-
 
 #endif // ENCODER_H

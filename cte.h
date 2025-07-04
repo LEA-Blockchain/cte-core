@@ -18,12 +18,6 @@
 #define CTE_VERSION_BYTE 0xF1
 
 /**
- * @def CTE_MAX_TRANSACTION_SIZE
- * @brief The maximum permissible size in bytes for a single CTE transaction.
- */
-//#define CTE_MAX_TRANSACTION_SIZE 1232
-
-/**
  * @name Field Tag Identifiers
  * @brief The 2-bit tags in the most significant bits of a field's header byte.
  * @{

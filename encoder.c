@@ -415,7 +415,7 @@ void cte_encoder_write_ixdata_boolean(cte_encoder_t *handle, bool value)
  * @note The caller is responsible for `memcpy`ing the payload into the returned pointer.
  * @warning Aborts on invalid parameters or if the write would exceed buffer capacity.
  */
-void *cte_encoder_begin_vector_data(cte_encoder_t *handle, size_t length)
+static void *cte_encoder_begin_vector_data(cte_encoder_t *handle, size_t length)
 {
     if (!handle)
     {
@@ -452,8 +452,6 @@ void *cte_encoder_begin_vector_data(cte_encoder_t *handle, size_t length)
 
     return write_ptr;
 }
-
-#ifdef ENV_WASM_MVP
 
 // --- WASM-specific 'add' wrappers ---
 
@@ -513,5 +511,5 @@ int cte_encoder_add_vector_data(cte_encoder_t *enc, size_t length, const void *d
     return 0;
 }
 
-#endif // ENV_WASM_MVP
+
 
