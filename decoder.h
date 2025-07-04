@@ -117,138 +117,17 @@ size_t cte_decoder_get_last_vector_count(const cte_decoder_t *decoder);
  */
 size_t cte_decoder_get_last_vector_data_payload_length(const cte_decoder_t *decoder);
 
-/**
- * @brief Reads the data payload of a Public Key Vector.
- *
- * @param decoder A pointer to the decoder context.
- * @return A const pointer to the start of the key data within the decoder's buffer.
- * @warning Aborts if the next field is not a Public Key Vector.
- */
-const uint8_t *cte_decoder_read_public_key_vector_data(cte_decoder_t *decoder);
 
-/**
- * @brief Reads the data payload of a Signature Vector.
- *
- * @param decoder A pointer to the decoder context.
- * @return A const pointer to the start of the signature data within the decoder's buffer.
- * @warning Aborts if the next field is not a Signature Vector.
- */
-const uint8_t *cte_decoder_read_signature_vector_data(cte_decoder_t *decoder);
 
-/**
- * @brief Reads an IxData Vector Index field.
- *
- * @param decoder A pointer to the decoder context.
- * @return The decoded 4-bit index value (0-15).
- * @warning Aborts on errors (wrong tag/subtype, insufficient data).
- */
-uint8_t cte_decoder_read_ixdata_vector_index(cte_decoder_t *decoder);
 
-/**
- * @brief Reads an IxData ULEB128 encoded unsigned integer field.
- *
- * @param decoder A pointer to the decoder context.
- * @return The decoded `uint64_t` value.
- * @warning Aborts on errors (wrong tag/subtype, invalid encoding, insufficient data).
- */
-uint64_t cte_decoder_read_ixdata_uleb128(cte_decoder_t *decoder);
 
-/**
- * @brief Reads an IxData SLEB128 encoded signed integer field.
- *
- * @param decoder A pointer to the decoder context.
- * @return The decoded `int64_t` value.
- * @warning Aborts on errors (wrong tag/subtype, invalid encoding, insufficient data).
- */
-int64_t cte_decoder_read_ixdata_sleb128(cte_decoder_t *decoder);
 
-/**
- * @brief Reads an IxData signed 8-bit integer field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `int8_t` value.
- */
-int8_t cte_decoder_read_ixdata_int8(cte_decoder_t *decoder);
 
-/**
- * @brief Reads an IxData signed 16-bit integer field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `int16_t` value.
- */
-int16_t cte_decoder_read_ixdata_int16(cte_decoder_t *decoder);
 
-/**
- * @brief Reads an IxData signed 32-bit integer field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `int32_t` value.
- */
-int32_t cte_decoder_read_ixdata_int32(cte_decoder_t *decoder);
 
-/**
- * @brief Reads an IxData signed 64-bit integer field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `int64_t` value.
- */
-int64_t cte_decoder_read_ixdata_int64(cte_decoder_t *decoder);
 
-/**
- * @brief Reads an IxData unsigned 8-bit integer field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `uint8_t` value.
- */
-uint8_t cte_decoder_read_ixdata_uint8(cte_decoder_t *decoder);
 
-/**
- * @brief Reads an IxData unsigned 16-bit integer field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `uint16_t` value.
- */
-uint16_t cte_decoder_read_ixdata_uint16(cte_decoder_t *decoder);
 
-/**
- * @brief Reads an IxData unsigned 32-bit integer field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `uint32_t` value.
- */
-uint32_t cte_decoder_read_ixdata_uint32(cte_decoder_t *decoder);
-
-/**
- * @brief Reads an IxData unsigned 64-bit integer field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `uint64_t` value.
- */
-uint64_t cte_decoder_read_ixdata_uint64(cte_decoder_t *decoder);
-
-/**
- * @brief Reads an IxData 32-bit float field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `float` value.
- */
-float cte_decoder_read_ixdata_float32(cte_decoder_t *decoder);
-
-/**
- * @brief Reads an IxData 64-bit double field.
- * @param decoder A pointer to the decoder context.
- * @return The decoded `double` value.
- */
-double cte_decoder_read_ixdata_float64(cte_decoder_t *decoder);
-
-/**
- * @brief Reads an IxData boolean constant field.
- *
- * @param decoder A pointer to the decoder context.
- * @return The decoded boolean value (`true` or `false`).
- * @warning Aborts on errors (wrong tag/subtype, invalid constant code).
- */
-bool cte_decoder_read_ixdata_boolean(cte_decoder_t *decoder);
-
-/**
- * @brief Reads the payload of a generic Vector Data field.
- *
- * @param decoder A pointer to the decoder context.
- * @return A const pointer to the start of the payload data within the decoder's buffer.
- * @warning Aborts if the next field is not Vector Data or the header is invalid.
- */
-const uint8_t *cte_decoder_read_vector_data_payload(cte_decoder_t *decoder);
 
 /**
  * @brief Decodes a full CTE stream using a callback mechanism.

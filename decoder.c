@@ -395,8 +395,8 @@ int cte_decoder_peek_type(cte_decoder_t *decoder)
     return -1; // Should not happen with valid CTE
 }
 
-LEA_EXPORT(cte_decoder_read_public_key_vector_data)
-const uint8_t *cte_decoder_read_public_key_vector_data(cte_decoder_t *decoder)
+
+static const uint8_t *_cte_decoder_read_public_key_vector_data(cte_decoder_t *decoder)
 {
     if (!decoder)
     {
@@ -429,8 +429,9 @@ const uint8_t *cte_decoder_read_public_key_vector_data(cte_decoder_t *decoder)
     return data_ptr;
 }
 
-LEA_EXPORT(cte_decoder_read_signature_vector_data)
-const uint8_t *cte_decoder_read_signature_vector_data(cte_decoder_t *decoder)
+
+
+static const uint8_t *_cte_decoder_read_signature_vector_data(cte_decoder_t *decoder)
 {
     if (!decoder)
     {
@@ -463,8 +464,9 @@ const uint8_t *cte_decoder_read_signature_vector_data(cte_decoder_t *decoder)
     return data_ptr;
 }
 
-LEA_EXPORT(cte_decoder_read_ixdata_vector_index)
-uint8_t cte_decoder_read_ixdata_vector_index(cte_decoder_t *decoder)
+
+
+static uint8_t _cte_decoder_read_ixdata_vector_index(cte_decoder_t *decoder)
 {
     if (!decoder)
     {
@@ -477,8 +479,9 @@ uint8_t cte_decoder_read_ixdata_vector_index(cte_decoder_t *decoder)
     return index;
 }
 
-LEA_EXPORT(cte_decoder_read_ixdata_uleb128)
-uint64_t cte_decoder_read_ixdata_uleb128(cte_decoder_t *decoder)
+
+
+static uint64_t _cte_decoder_read_ixdata_uleb128(cte_decoder_t *decoder)
 {
     if (!decoder)
     {
@@ -501,8 +504,9 @@ uint64_t cte_decoder_read_ixdata_uleb128(cte_decoder_t *decoder)
     return value;
 }
 
-LEA_EXPORT(cte_decoder_read_ixdata_sleb128)
-int64_t cte_decoder_read_ixdata_sleb128(cte_decoder_t *decoder)
+
+
+static int64_t _cte_decoder_read_ixdata_sleb128(cte_decoder_t *decoder)
 {
     if (!decoder)
     {
@@ -525,88 +529,79 @@ int64_t cte_decoder_read_ixdata_sleb128(cte_decoder_t *decoder)
     return value;
 }
 
-LEA_EXPORT(cte_decoder_read_ixdata_int8)
-int8_t cte_decoder_read_ixdata_int8(cte_decoder_t *decoder)
+
+
+static int8_t _cte_decoder_read_ixdata_int8(cte_decoder_t *decoder)
 {
     int8_t value;
     _read_fixed_data(decoder, CTE_IXDATA_FIXED_TYPE_INT8, sizeof(value), &value);
     return value;
 }
 
-LEA_EXPORT(cte_decoder_read_ixdata_int16)
-int16_t cte_decoder_read_ixdata_int16(cte_decoder_t *decoder)
+static int16_t _cte_decoder_read_ixdata_int16(cte_decoder_t *decoder)
 {
     int16_t value;
     _read_fixed_data(decoder, CTE_IXDATA_FIXED_TYPE_INT16, sizeof(value), &value);
     return value;
 }
 
-LEA_EXPORT(cte_decoder_read_ixdata_int32)
-int32_t cte_decoder_read_ixdata_int32(cte_decoder_t *decoder)
+static int32_t _cte_decoder_read_ixdata_int32(cte_decoder_t *decoder)
 {
     int32_t value;
     _read_fixed_data(decoder, CTE_IXDATA_FIXED_TYPE_INT32, sizeof(value), &value);
     return value;
 }
 
-LEA_EXPORT(cte_decoder_read_ixdata_int64)
-int64_t cte_decoder_read_ixdata_int64(cte_decoder_t *decoder)
+static int64_t _cte_decoder_read_ixdata_int64(cte_decoder_t *decoder)
 {
     int64_t value;
     _read_fixed_data(decoder, CTE_IXDATA_FIXED_TYPE_INT64, sizeof(value), &value);
     return value;
 }
 
-LEA_EXPORT(cte_decoder_read_ixdata_uint8)
-uint8_t cte_decoder_read_ixdata_uint8(cte_decoder_t *decoder)
+static uint8_t _cte_decoder_read_ixdata_uint8(cte_decoder_t *decoder)
 {
     uint8_t value;
     _read_fixed_data(decoder, CTE_IXDATA_FIXED_TYPE_UINT8, sizeof(value), &value);
     return value;
 }
 
-LEA_EXPORT(cte_decoder_read_ixdata_uint16)
-uint16_t cte_decoder_read_ixdata_uint16(cte_decoder_t *decoder)
+static uint16_t _cte_decoder_read_ixdata_uint16(cte_decoder_t *decoder)
 {
     uint16_t value;
     _read_fixed_data(decoder, CTE_IXDATA_FIXED_TYPE_UINT16, sizeof(value), &value);
     return value;
 }
 
-LEA_EXPORT(cte_decoder_read_ixdata_uint32)
-uint32_t cte_decoder_read_ixdata_uint32(cte_decoder_t *decoder)
+static uint32_t _cte_decoder_read_ixdata_uint32(cte_decoder_t *decoder)
 {
     uint32_t value;
     _read_fixed_data(decoder, CTE_IXDATA_FIXED_TYPE_UINT32, sizeof(value), &value);
     return value;
 }
 
-LEA_EXPORT(cte_decoder_read_ixdata_uint64)
-uint64_t cte_decoder_read_ixdata_uint64(cte_decoder_t *decoder)
+static uint64_t _cte_decoder_read_ixdata_uint64(cte_decoder_t *decoder)
 {
     uint64_t value;
     _read_fixed_data(decoder, CTE_IXDATA_FIXED_TYPE_UINT64, sizeof(value), &value);
     return value;
 }
 
-LEA_EXPORT(cte_decoder_read_ixdata_float32)
-float cte_decoder_read_ixdata_float32(cte_decoder_t *decoder)
+static float _cte_decoder_read_ixdata_float32(cte_decoder_t *decoder)
 {
     float value;
     _read_fixed_data(decoder, CTE_IXDATA_FIXED_TYPE_FLOAT32, sizeof(value), &value);
     return value;
 }
 
-LEA_EXPORT(cte_decoder_read_ixdata_float64)
-double cte_decoder_read_ixdata_float64(cte_decoder_t *decoder)
+static double _cte_decoder_read_ixdata_float64(cte_decoder_t *decoder)
 {
     double value;
     _read_fixed_data(decoder, CTE_IXDATA_FIXED_TYPE_FLOAT64, sizeof(value), &value);
     return value;
 }
 
-LEA_EXPORT(cte_decoder_read_ixdata_boolean)
-bool cte_decoder_read_ixdata_boolean(cte_decoder_t *decoder)
+static bool _cte_decoder_read_ixdata_boolean(cte_decoder_t *decoder)
 {
     if (!decoder)
     {
@@ -630,8 +625,7 @@ bool cte_decoder_read_ixdata_boolean(cte_decoder_t *decoder)
     }
 }
 
-LEA_EXPORT(cte_decoder_read_vector_data_payload)
-const uint8_t *cte_decoder_read_vector_data_payload(cte_decoder_t *decoder)
+static const uint8_t *_cte_decoder_read_vector_data_payload(cte_decoder_t *decoder)
 {
     if (!decoder)
     {
@@ -657,8 +651,7 @@ const uint8_t *cte_decoder_read_vector_data_payload(cte_decoder_t *decoder)
     return payload_ptr;
 }
 
-LEA_EXPORT(cte_decoder_read_ixdata_varint_zero)
-void cte_decoder_read_ixdata_varint_zero(cte_decoder_t *decoder)
+static void _cte_decoder_read_ixdata_varint_zero(cte_decoder_t *decoder)
 {
     if (!decoder)
     {
@@ -672,6 +665,7 @@ void cte_decoder_read_ixdata_varint_zero(cte_decoder_t *decoder)
         lea_abort("Expected Varint encoding scheme 0 (ZERO)");
     }
 }
+
 
 LEA_EXPORT(cte_decoder_get_last_vector_count)
 size_t cte_decoder_get_last_vector_count(const cte_decoder_t *decoder)
@@ -719,7 +713,7 @@ int cte_decoder_run(cte_decoder_t *decoder)
         case CTE_PEEK_TYPE_PK_VECTOR_SIZE_2:
         case CTE_PEEK_TYPE_PK_VECTOR_SIZE_3:
         {
-            const uint8_t *data = cte_decoder_read_public_key_vector_data(decoder);
+            const uint8_t *data = _cte_decoder_read_public_key_vector_data(decoder);
             size_t count = cte_decoder_get_last_vector_count(decoder);
             size_t item_size = get_public_key_size(type - CTE_PEEK_TYPE_PK_VECTOR_SIZE_0);
             __cte_data_handler(type, data, count * item_size);
@@ -730,7 +724,7 @@ int cte_decoder_run(cte_decoder_t *decoder)
         case CTE_PEEK_TYPE_SIG_VECTOR_SIZE_2:
         case CTE_PEEK_TYPE_SIG_VECTOR_SIZE_3:
         {
-            const uint8_t *data = cte_decoder_read_signature_vector_data(decoder);
+            const uint8_t *data = _cte_decoder_read_signature_vector_data(decoder);
             size_t count = cte_decoder_get_last_vector_count(decoder);
             size_t item_size = get_signature_item_size(type - CTE_PEEK_TYPE_SIG_VECTOR_SIZE_0);
             __cte_data_handler(type, data, count * item_size);
@@ -739,33 +733,33 @@ int cte_decoder_run(cte_decoder_t *decoder)
         // --- IxData ---
         case CTE_PEEK_TYPE_IXDATA_VECTOR_INDEX:
         {
-            uint8_t val = cte_decoder_read_ixdata_vector_index(decoder);
+            uint8_t val = _cte_decoder_read_ixdata_vector_index(decoder);
             __cte_data_handler(type, &val, sizeof(val));
             break;
         }
         case CTE_PEEK_TYPE_IXDATA_VARINT_ZERO:
         {
-            cte_decoder_read_ixdata_varint_zero(decoder);
+            _cte_decoder_read_ixdata_varint_zero(decoder);
             uint64_t val = 0;
             __cte_data_handler(type, &val, sizeof(val));
             break;
         }
         case CTE_PEEK_TYPE_IXDATA_ULEB128:
         {
-            uint64_t val = cte_decoder_read_ixdata_uleb128(decoder);
+            uint64_t val = _cte_decoder_read_ixdata_uleb128(decoder);
             __cte_data_handler(type, &val, sizeof(val));
             break;
         }
         case CTE_PEEK_TYPE_IXDATA_SLEB128:
         {
-            int64_t val = cte_decoder_read_ixdata_sleb128(decoder);
+            int64_t val = _cte_decoder_read_ixdata_sleb128(decoder);
             __cte_data_handler(type, &val, sizeof(val));
             break;
         }
         case CTE_PEEK_TYPE_IXDATA_CONST_FALSE:
         case CTE_PEEK_TYPE_IXDATA_CONST_TRUE:
         {
-            bool val = cte_decoder_read_ixdata_boolean(decoder);
+            bool val = _cte_decoder_read_ixdata_boolean(decoder);
             __cte_data_handler(type, &val, sizeof(val));
             break;
         }
@@ -773,7 +767,7 @@ int cte_decoder_run(cte_decoder_t *decoder)
         case CTE_PEEK_TYPE_VECTOR_SHORT:
         case CTE_PEEK_TYPE_VECTOR_EXTENDED:
         {
-            const uint8_t *data = cte_decoder_read_vector_data_payload(decoder);
+            const uint8_t *data = _cte_decoder_read_vector_data_payload(decoder);
             size_t len = cte_decoder_get_last_vector_data_payload_length(decoder);
             __cte_data_handler(type, data, len);
             break;
@@ -787,43 +781,43 @@ int cte_decoder_run(cte_decoder_t *decoder)
                 switch (type)
                 {
                 case CTE_PEEK_TYPE_IXDATA_INT8:
-                    *(int8_t *)temp_buf = cte_decoder_read_ixdata_int8(decoder);
+                    *(int8_t *)temp_buf = _cte_decoder_read_ixdata_int8(decoder);
                     data_size = sizeof(int8_t);
                     break;
                 case CTE_PEEK_TYPE_IXDATA_INT16:
-                    *(int16_t *)temp_buf = cte_decoder_read_ixdata_int16(decoder);
+                    *(int16_t *)temp_buf = _cte_decoder_read_ixdata_int16(decoder);
                     data_size = sizeof(int16_t);
                     break;
                 case CTE_PEEK_TYPE_IXDATA_INT32:
-                    *(int32_t *)temp_buf = cte_decoder_read_ixdata_int32(decoder);
+                    *(int32_t *)temp_buf = _cte_decoder_read_ixdata_int32(decoder);
                     data_size = sizeof(int32_t);
                     break;
                 case CTE_PEEK_TYPE_IXDATA_INT64:
-                    *(int64_t *)temp_buf = cte_decoder_read_ixdata_int64(decoder);
+                    *(int64_t *)temp_buf = _cte_decoder_read_ixdata_int64(decoder);
                     data_size = sizeof(int64_t);
                     break;
                 case CTE_PEEK_TYPE_IXDATA_UINT8:
-                    *(uint8_t *)temp_buf = cte_decoder_read_ixdata_uint8(decoder);
+                    *(uint8_t *)temp_buf = _cte_decoder_read_ixdata_uint8(decoder);
                     data_size = sizeof(uint8_t);
                     break;
                 case CTE_PEEK_TYPE_IXDATA_UINT16:
-                    *(uint16_t *)temp_buf = cte_decoder_read_ixdata_uint16(decoder);
+                    *(uint16_t *)temp_buf = _cte_decoder_read_ixdata_uint16(decoder);
                     data_size = sizeof(uint16_t);
                     break;
                 case CTE_PEEK_TYPE_IXDATA_UINT32:
-                    *(uint32_t *)temp_buf = cte_decoder_read_ixdata_uint32(decoder);
+                    *(uint32_t *)temp_buf = _cte_decoder_read_ixdata_uint32(decoder);
                     data_size = sizeof(uint32_t);
                     break;
                 case CTE_PEEK_TYPE_IXDATA_UINT64:
-                    *(uint64_t *)temp_buf = cte_decoder_read_ixdata_uint64(decoder);
+                    *(uint64_t *)temp_buf = _cte_decoder_read_ixdata_uint64(decoder);
                     data_size = sizeof(uint64_t);
                     break;
                 case CTE_PEEK_TYPE_IXDATA_FLOAT32:
-                    *(float *)temp_buf = cte_decoder_read_ixdata_float32(decoder);
+                    *(float *)temp_buf = _cte_decoder_read_ixdata_float32(decoder);
                     data_size = sizeof(float);
                     break;
                 case CTE_PEEK_TYPE_IXDATA_FLOAT64:
-                    *(double *)temp_buf = cte_decoder_read_ixdata_float64(decoder);
+                    *(double *)temp_buf = _cte_decoder_read_ixdata_float64(decoder);
                     data_size = sizeof(double);
                     break;
                 }

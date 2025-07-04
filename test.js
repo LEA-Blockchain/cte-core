@@ -210,87 +210,8 @@ JS Callback -> Received Type: ${type}, Size: ${size}`);
     const decoderLoadPtr = decExports.cte_decoder_load(dec);
     new Uint8Array(decExports.memory.buffer).set(encodedData, decoderLoadPtr);
 
-    // --- 4. Decode Data with Manual Loop ---
-    console.log('\nDecoding Iteratively with Manual Peek/Read Loop:');
-    
-    const PEEK_EOF = 255;
-    let type;
-    while ((type = decExports.cte_decoder_peek_type(dec)) !== PEEK_EOF) {
-        console.log(`\nJS Loop -> Peeked Type: ${type}`);
-        
-        if (type >= 0 && type <= 3) { // PK Vector
-            const dataPtr = decExports.cte_decoder_read_public_key_vector_data(dec);
-            const count = decExports.cte_decoder_get_last_vector_count(dec);
-            const itemSize = decExports.get_public_key_size(type - 0);
-            const data = new Uint8Array(decExports.memory.buffer, dataPtr, count * itemSize);
-            printHex("  - Read PK Vector Data", data);
-        } else if (type >= 4 && type <= 7) { // Sig Vector
-            const dataPtr = decExports.cte_decoder_read_signature_vector_data(dec);
-            const count = decExports.cte_decoder_get_last_vector_count(dec);
-            const itemSize = decExports.get_signature_item_size(type - 4);
-            const data = new Uint8Array(decExports.memory.buffer, dataPtr, count * itemSize);
-            printHex("  - Read Sig Vector Data", data);
-        } else if (type === 8) { // Vector Index
-            const index = decExports.cte_decoder_read_ixdata_vector_index(dec);
-            console.log(`  - Read Vector Index: ${index}`);
-        } else if (type === 9) { // Zero
-            decExports.cte_decoder_read_ixdata_zero(dec);
-            console.log(`  - Read Zero`);
-        } else if (type === 10) { // ULEB128
-            const val = decExports.cte_decoder_read_ixdata_uleb128(dec);
-            console.log(`  - Read ULEB128: ${val}`);
-        } else if (type === 11) { // SLEB128
-            const val = decExports.cte_decoder_read_ixdata_sleb128(dec);
-            console.log(`  - Read SLEB128: ${val}`);
-        } else if (type === 12) { // Int8
-            const val = decExports.cte_decoder_read_ixdata_int8(dec);
-            console.log(`  - Read Int8: ${val}`);
-        } else if (type === 13) { // Int16
-            const val = decExports.cte_decoder_read_ixdata_int16(dec);
-            console.log(`  - Read Int16: ${val}`);
-        } else if (type === 14) { // Int32
-            const val = decExports.cte_decoder_read_ixdata_int32(dec);
-            console.log(`  - Read Int32: ${val}`);
-        } else if (type === 15) { // Int64
-            const val = decExports.cte_decoder_read_ixdata_int64(dec);
-            console.log(`  - Read Int64: ${val}`);
-        } else if (type === 16) { // UInt8
-            const val = decExports.cte_decoder_read_ixdata_uint8(dec);
-            console.log(`  - Read UInt8: ${val}`);
-        } else if (type === 17) { // UInt16
-            const val = decExports.cte_decoder_read_ixdata_uint16(dec);
-            console.log(`  - Read UInt16: ${val}`);
-        } else if (type === 18) { // UInt32
-            const val = decExports.cte_decoder_read_ixdata_uint32(dec);
-            console.log(`  - Read UInt32: ${val}`);
-        } else if (type === 19) { // UInt64
-            const val = decExports.cte_decoder_read_ixdata_uint64(dec);
-            console.log(`  - Read UInt64: ${val}`);
-        } else if (type === 20) { // Float32
-            const val = decExports.cte_decoder_read_ixdata_float32(dec);
-            console.log(`  - Read Float32: ${val}`);
-        } else if (type === 21) { // Float64
-            const val = decExports.cte_decoder_read_ixdata_float64(dec);
-            console.log(`  - Read Float64: ${val}`);
-        } else if (type === 22 || type === 23) { // Boolean
-            const val = decExports.cte_decoder_read_ixdata_boolean(dec);
-            console.log(`  - Read Boolean: ${val}`);
-        } else if (type === 24 || type === 25) { // Vector Data
-            const dataPtr = decExports.cte_decoder_read_vector_data_payload(dec);
-            const len = decExports.cte_decoder_get_last_vector_data_payload_length(dec);
-            const data = new Uint8Array(decExports.memory.buffer, dataPtr, len);
-            printHex("  - Read Vector Data", data);
-        } else {
-            console.log("  - Skipping type (not implemented in this test script)");
-            break; 
-        }
-    }
-
-    // --- 5. Decode Data with Host Callback ---
+    // --- 4. Decode Data with Host Callback ---
     console.log('\nDecoding with Host Callback:');
-    decExports.cte_decoder_reset(dec); // Reset decoder to run again
-    receivedData.length = 0; // Clear the array
-
     const result = decExports.cte_decoder_run(dec);
     console.log(`\nCallback decoding finished with result: ${result}`);
 
